@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>A Watch Channel In Go</title>
+<link rel="stylesheet" href="/assets/style.css">
+<link rel="alternate" type="application/rss+xml" title="RSS Feed" href="/b/scb/rss.xml">
+<link rel="alternate" type="application/atom+xml" title="Atom Feed" href="/b/scb/atom.xml">
+</head>
+<body>
+<div id="content">
+<nav>
+<a href="/"><div class="navitem">HOME</div></a>
+<a href="/p/"><div class="navitem">PROJECTS</div></a>
+<a href="/b/"><div class="navitem">BLOGS</div></a>
+<div class="clear"></div>
+</nav>
+<main>
+
+
+<h1>A Watch Channel In Go</h1>
+
+<p><i>8 November 2024</i></p>
+
+<p>
+In this post I want to share a design pattern for a simple broadcast/watch channel in Go. I'm a relative golang newcomer and I've been learning how to do certain things that I already have a solution for in Rust&mdash;in this case tokio's watch channel, which provides updates of some value to an arbitrary number of receivers.
+</p>
+
+<p>
+As we know, channels in Go do not broadcast. You can have multiple receivers, but a value that is sent will only go to one of them. It is noted in the documentation that you can use <em>closing</em> a channel to perform a broadcast of sorts, since unlike a regular channel update this will be delivered to all receivers. This is a useful hint that will make this easier to build.
+</p>
+
+<p>
+You could build a broadcast channel more generally by using a subscribe/unsubscribe pattern where values are fanned out to each receiver explicitly. This is a bit of a hassle, though, and we can avoid that complexity by stipulating certain design criteria.
+</p>
+
+<ul>
+<li>We have a value that gets updated at arbitrary times and all subscribers should learn of the new value immediately.
+<li>The sender, which is setting new values, should not need to track subscribers/receivers.
+<li>A subscriber is not guaranteed to see every value if it changes multiple times quickly, but it will always know about the latest value once this situation settles down.
+<li>The sender will not experience backpressure&mdash;it can change values as often as it likes.
+<li>There are no race conditions when subscribing if there is also an update in progress. Either the subscriber sees the latest value, or they see the second-last value and get an immediate notification for the latest value.
+<li>Waiting for the next value should be a regular channel so it is easy to compose in a <tt>select</tt> for cancellation.
+</ul>
+
+So long as we're satisfied with these rules, this is relatively straightforward to implement.
+
+<pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="display:flex;"><span><span style="color:#204a87;font-weight:bold">type</span> <span style="color:#000">Sender</span> <span style="color:#204a87;font-weight:bold">struct</span> <span style="color:#000;font-weight:bold">{</span>
+</span></span><span style="display:flex;"><span>	<span style="color:#000">value</span>      <span style="color:#204a87;font-weight:bold">string</span>
+</span></span><span style="display:flex;"><span>	<span style="color:#000">lock</span>       <span style="color:#000">sync</span><span style="color:#000;font-weight:bold">.</span><span style="color:#000">Mutex</span>
+</span></span><span style="display:flex;"><span>	<span style="color:#000">changeWait</span> <span style="color:#204a87;font-weight:bold">chan</span> <span style="color:#204a87;font-weight:bold">bool</span>
+</span></span><span style="display:flex;"><span><span style="color:#000;font-weight:bold">}</span>
+</span></span></code></pre>
+
+<p>
+The sender needs three things: the current value that is being subscribed to, a lock to protect reading and writing of that value, and a channel to notify of updates. The value could be anything&mdash;here I've arbitrarily chosen a string.
+</p>
+
+<p>
+Here is the method that will allow somebody to subscribe to updates:
+</p>
+
+<pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="display:flex;"><span><span style="color:#204a87;font-weight:bold">func</span> <span style="color:#000;font-weight:bold">(</span><span style="color:#000">s</span> <span style="color:#ce5c00;font-weight:bold">*</span><span style="color:#000">Sender</span><span style="color:#000;font-weight:bold">)</span> <span style="color:#000">Subscribe</span><span style="color:#000;font-weight:bold">()</span> <span style="color:#000;font-weight:bold">(</span><span style="color:#204a87;font-weight:bold">string</span><span style="color:#000;font-weight:bold">,</span> <span style="color:#204a87;font-weight:bold">chan</span> <span style="color:#204a87;font-weight:bold">bool</span><span style="color:#000;font-weight:bold">)</span> <span style="color:#000;font-weight:bold">{</span>
+</span></span><span style="display:flex;"><span>	<span style="color:#000">s</span><span style="color:#000;font-weight:bold">.</span><span style="color:#000">lock</span><span style="color:#000;font-weight:bold">.</span><span style="color:#000">Lock</span><span style="color:#000;font-weight:bold">()</span>
+</span></span><span style="display:flex;"><span>	<span style="color:#204a87;font-weight:bold">defer</span> <span style="color:#000">s</span><span style="color:#000;font-weight:bold">.</span><span style="color:#000">lock</span><span style="color:#000;font-weight:bold">.</span><span style="color:#000">Unlock</span><span style="color:#000;font-weight:bold">()</span>
+</span></span><span style="display:flex;"><span>	<span style="color:#204a87;font-weight:bold">return</span> <span style="color:#000">s</span><span style="color:#000;font-weight:bold">.</span><span style="color:#000">value</span><span style="color:#000;font-weight:bold">,</span> <span style="color:#000">s</span><span style="color:#000;font-weight:bold">.</span><span style="color:#000">changeWait</span>
+</span></span><span style="display:flex;"><span><span style="color:#000;font-weight:bold">}</span>
+</span></span></code></pre>
+
+<p>
+So far, so simple. It's important here that the lock protects access of <em>both</em> the <tt>value</tt> and the <tt>changeWait</tt> channel.
+</p>
+
+<p>
+The subscriber should use it like this.
+</p>
+
+<pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="display:flex;"><span><span style="color:#204a87;font-weight:bold">for</span> <span style="color:#000;font-weight:bold">{</span>
+</span></span><span style="display:flex;"><span>	<span style="color:#000">value</span><span style="color:#000;font-weight:bold">,</span> <span style="color:#000">changed</span> <span style="color:#000;font-weight:bold">=</span> <span style="color:#000">sender</span><span style="color:#000;font-weight:bold">.</span><span style="color:#000">Subscribe</span><span style="color:#000;font-weight:bold">()</span>
+</span></span><span style="display:flex;"><span>	<span style="color:#8f5902;font-style:italic">// use value here
+</span></span></span><span style="display:flex;"><span><span style="color:#8f5902;font-style:italic"></span>	<span style="color:#ce5c00;font-weight:bold">&lt;-</span><span style="color:#000">changed</span>
+</span></span><span style="display:flex;"><span><span style="color:#000;font-weight:bold">}</span>
+</span></span></code></pre>
+
+<p>
+This is how we avoid tracking long-term subscribers: there is no such thing as a long-term subscriber, only code that calls <tt>Subscribe()</tt> in a loop every time it is interested in the next value.
+</p>
+
+<p>
+Next let's look at how the sender will update its value internally.
+</p>
+
+<pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="display:flex;"><span><span style="color:#204a87;font-weight:bold">func</span> <span style="color:#000;font-weight:bold">(</span><span style="color:#000">s</span> <span style="color:#ce5c00;font-weight:bold">*</span><span style="color:#000">Sender</span><span style="color:#000;font-weight:bold">)</span> <span style="color:#000">update</span><span style="color:#000;font-weight:bold">(</span><span style="color:#000">newValue</span> <span style="color:#204a87;font-weight:bold">string</span><span style="color:#000;font-weight:bold">)</span> <span style="color:#000;font-weight:bold">{</span>
+</span></span><span style="display:flex;"><span>	<span style="color:#000">s</span><span style="color:#000;font-weight:bold">.</span><span style="color:#000">lock</span><span style="color:#000;font-weight:bold">.</span><span style="color:#000">Lock</span><span style="color:#000;font-weight:bold">()</span>
+</span></span><span style="display:flex;"><span>	<span style="color:#204a87;font-weight:bold">defer</span> <span style="color:#000">s</span><span style="color:#000;font-weight:bold">.</span><span style="color:#000">lock</span><span style="color:#000;font-weight:bold">.</span><span style="color:#000">Unlock</span><span style="color:#000;font-weight:bold">()</span>
+</span></span><span style="display:flex;"><span>	<span style="color:#000">s</span><span style="color:#000;font-weight:bold">.</span><span style="color:#000">value</span> <span style="color:#000;font-weight:bold">=</span> <span style="color:#000">newValue</span>
+</span></span><span style="display:flex;"><span>	<span style="color:#204a87">close</span><span style="color:#000;font-weight:bold">(</span><span style="color:#000">s</span><span style="color:#000;font-weight:bold">.</span><span style="color:#000">changeWait</span><span style="color:#000;font-weight:bold">)</span>
+</span></span><span style="display:flex;"><span>	<span style="color:#000">s</span><span style="color:#000;font-weight:bold">.</span><span style="color:#000">changeWait</span> <span style="color:#000;font-weight:bold">=</span> <span style="color:#204a87">make</span><span style="color:#000;font-weight:bold">(</span><span style="color:#204a87;font-weight:bold">chan</span> <span style="color:#204a87;font-weight:bold">bool</span><span style="color:#000;font-weight:bold">)</span>
+</span></span><span style="display:flex;"><span><span style="color:#000;font-weight:bold">}</span>
+</span></span></code></pre>
+
+<p>
+We achieve the broadcast to all interested receivers by closing the channel. We create a new one and install this replacement while the mutex is still locked. This way, a receiver that calls <tt>Subscribe()</tt> always gets a consistent view; the value is always paired with the correct channel instance.
+</p>
+
+<p>
+For example, this by comparison would <em>not</em> work:
+</p>
+
+<pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="display:flex;"><span><span style="color:#204a87;font-weight:bold">for</span> <span style="color:#000;font-weight:bold">{</span>
+</span></span><span style="display:flex;"><span>	<span style="color:#000">value</span> <span style="color:#000;font-weight:bold">=</span> <span style="color:#000">sender</span><span style="color:#000;font-weight:bold">.</span><span style="color:#000">Value</span><span style="color:#000;font-weight:bold">()</span>
+</span></span><span style="display:flex;"><span>	<span style="color:#8f5902;font-style:italic">// use value
+</span></span></span><span style="display:flex;"><span><span style="color:#8f5902;font-style:italic"></span>	<span style="color:#ce5c00;font-weight:bold">&lt;-</span><span style="color:#000">sender</span><span style="color:#000;font-weight:bold">.</span><span style="color:#000">Changed</span><span style="color:#000;font-weight:bold">()</span>
+</span></span><span style="display:flex;"><span><span style="color:#000;font-weight:bold">}</span>
+</span></span></code></pre>
+
+<p>
+If <tt>value</tt> was updated between the calls to <tt>Value()</tt> and <tt>Changed()</tt> then the receiver would miss it.
+</p>
+
+<p>
+This would work somewhat better:
+</p>
+
+<pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="display:flex;"><span><span style="color:#204a87;font-weight:bold">for</span> <span style="color:#000;font-weight:bold">{</span>
+</span></span><span style="display:flex;"><span>	<span style="color:#000">changed</span> <span style="color:#000;font-weight:bold">=</span> <span style="color:#000">sender</span><span style="color:#000;font-weight:bold">.</span><span style="color:#000">Changed</span><span style="color:#000;font-weight:bold">()</span>
+</span></span><span style="display:flex;"><span>	<span style="color:#000">value</span> <span style="color:#000;font-weight:bold">=</span> <span style="color:#000">sender</span><span style="color:#000;font-weight:bold">.</span><span style="color:#000">Value</span><span style="color:#000;font-weight:bold">()</span>
+</span></span><span style="display:flex;"><span>	<span style="color:#8f5902;font-style:italic">// use value
+</span></span></span><span style="display:flex;"><span><span style="color:#8f5902;font-style:italic"></span>	<span style="color:#ce5c00;font-weight:bold">&lt;-</span><span style="color:#000">changed</span>
+</span></span><span style="display:flex;"><span><span style="color:#000;font-weight:bold">}</span>
+</span></span></code></pre>
+
+<p>
+However this could spuriously double-fire if a new value was introduced between the calls to <tt>Changed()</tt> and <tt>Value()</tt>. The subscriber has already seen the latest value, but it picked up an already-closed channel so it will loop around and get the same value again. Depending on the application this may or may not be a significant problem.
+</p>
+
+<p>
+I have no doubt this pattern (or something better) has been used many times in Go software before, however I didn't stumble across anything like it when I was researching the problem. Perhaps this write-up will save somebody else some time!
+</p>
+
+
+
+<hr>
+
+<p>
+<a href="/b/scb/">Serious Computer Business</a> Blog by Thomas Karpiniec<br>
+Posts <a href="/b/scb/rss.xml">RSS</a>, <a href="/b/scb/atom.xml">Atom</a>
+</p>
+
+</main>
+</div>
+</body>
+</html>
+

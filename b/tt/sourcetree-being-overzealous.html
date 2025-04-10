@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SourceTree being overzealous</title>
+<link rel="stylesheet" href="/assets/style.css">
+<link rel="alternate" type="application/rss+xml" title="RSS Feed" href="/b/tt/rss.xml">
+<link rel="alternate" type="application/atom+xml" title="Atom Feed" href="/b/tt/atom.xml">
+</head>
+<body>
+<div id="content">
+<nav>
+<a href="/"><div class="navitem">HOME</div></a>
+<a href="/p/"><div class="navitem">PROJECTS</div></a>
+<a href="/b/"><div class="navitem">BLOGS</div></a>
+<div class="clear"></div>
+</nav>
+<main>
+
+
+<h1>SourceTree being overzealous</h1>
+
+<p><i>7 November 2024</i></p>
+
+<p>
+I came across this strange git error while trying to check out my dependencies with cargo.
+</p>
+
+<pre>
+fatal: cannot use bare repository '/Users/tk/.cargo/git/db/tracing-3b3ea2e46aa0049f' (safe.bareRepository is 'explicit')
+error: failed to load source for dependency `tracing`
+</pre>
+
+<p>
+This odd error turned out to be <a href="https://jira.atlassian.com/browse/SRCTREE-8176">caused by SourceTree</a>, the git client I use on my work Mac. For overenthusiastic security reasons, it modifies <tt>~./gitconfig</tt> like this, which disables the use of bare repositories that are not explicitly named:
+</p>
+
+<pre>
+[safe]
+    bareRepository = explicit
+</pre>
+
+<p>
+Unfortunately this breaks how cargo uses dependencies in git repos. I resolved this by removing the entry from <tt>~/.gitconfig</tt> and adjusting the setting mentioned in the ticket:
+</p>
+
+<blockquote>
+You could disable auto-pushing this setting in your config in Sourcetree settings by opening Sourcetree -> Settings... and unchecking "Allow Sourcetree to modify your global Mercurial and Git configuration files".
+</blockquote>
+
+
+<hr>
+
+<p>
+<a href="/b/tt/">Tech Tidbits</a> Blog by Thomas Karpiniec<br>
+Posts <a href="/b/tt/rss.xml">RSS</a>, <a href="/b/tt/atom.xml">Atom</a>
+</p>
+
+</main>
+</div>
+</body>
+</html>
+

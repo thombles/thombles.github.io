@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cross-Compiling Rust for Rosetta on Mac</title>
+<link rel="stylesheet" href="/assets/style.css">
+<link rel="alternate" type="application/rss+xml" title="RSS Feed" href="/b/tt/rss.xml">
+<link rel="alternate" type="application/atom+xml" title="Atom Feed" href="/b/tt/atom.xml">
+</head>
+<body>
+<div id="content">
+<nav>
+<a href="/"><div class="navitem">HOME</div></a>
+<a href="/p/"><div class="navitem">PROJECTS</div></a>
+<a href="/b/"><div class="navitem">BLOGS</div></a>
+<div class="clear"></div>
+</nav>
+<main>
+
+
+<h1>Cross-Compiling Rust for Rosetta on Mac</h1>
+
+<p><i>27 November 2024</i></p>
+
+<p>
+On an Apple Silicon Mac I was a cross-compiling some Rust code for the x86 version of a Mac and wanted to run some tests. That is:
+</p>
+
+<pre>
+cargo test --target x86_64-apple-darwin
+</pre>
+
+<p>
+This gave me an error I didn't expect: "Bad CPU type in executable (os error 86)".
+</p>
+
+<p>
+Aren't Apple Silicon Macs supposed to come with you-beaut emulation so that they run x86 binaries flawlessly? Well yes, but it turns out it's not installed by default.
+</p>
+
+<pre>
+% <b>softwareupdate --install-rosetta</b>
+I have read and agree to the terms of the software license agreement. A list of Apple SLAs may be found here: https://www.apple.com/legal/sla/
+Type A and press return to agree: <b>A</b>
+2024-11-27 19:32:19.298 softwareupdate[69420:4381642] Package Authoring Error: 072-12297: Package reference com.apple.pkg.RosettaUpdateAuto is missing installKBytes attribute
+Install of Rosetta 2 finished successfully
+</pre>
+
+<p>
+After running this command the cargo invocation works correctly.
+</p>
+
+
+<hr>
+
+<p>
+<a href="/b/tt/">Tech Tidbits</a> Blog by Thomas Karpiniec<br>
+Posts <a href="/b/tt/rss.xml">RSS</a>, <a href="/b/tt/atom.xml">Atom</a>
+</p>
+
+</main>
+</div>
+</body>
+</html>
+

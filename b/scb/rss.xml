@@ -1,0 +1,901 @@
+<?xml version="1.0" encoding="UTF-8"?><rss version="2.0" xmlns:content="http://purl.org/rss/1.0/modules/content/">
+  <channel>
+    <title>Serious Computer Business</title>
+    <link>https://octet-stream.net/b/scb/</link>
+    <description></description>
+    <managingEditor>tom.karpiniec@outlook.com (Thomas Karpiniec)</managingEditor>
+    <pubDate>Thu, 10 Apr 2025 20:12:48 +1000</pubDate>
+    <item>
+      <title>Building Cross-Platform Offline-First Apps with Bluetooth Low Energy</title>
+      <link>https://octet-stream.net/b/scb/building-cross-platform-offline-first-apps-with-ble.html</link>
+      <description></description>
+      <content:encoded><![CDATA[<p>
+This is the transcript and slides from a presentation I gave at <a href="https://auc.edu.au/devworld/">/dev/world</a> in Melbourne on May 9, 2024, under the somewhat less descriptive title "Bluetooth Low Energy On All The Things". If you like to watch things in video format then AUC <a href="https://www.youtube.com/watch?v=DPGiPhr8UW8">has the original on their YouTube channel</a>.
+</p>
+
+<hr>
+
+<p>
+Hello everybody. Yes, my name is Tom and today we're going to look at <a href="https://en.wikipedia.org/wiki/Bluetooth_Low_Energy">Bluetooth Low Energy</a> and how you can use it for peer-to-peer communication in your apps. Now, Apple has an API for Bluetooth Low Energy and that's called <a href="https://developer.apple.com/documentation/corebluetooth">Core Bluetooth</a> but for this presentation I'll be using the acronym "BLE".
+</p>
+
+<a href="https://octet-stream.net/assets/ble/Slide2.webp"><img src="https://octet-stream.net/assets/ble/Slide2-sml.webp"></a>
+
+<p>
+This talk will be in four main parts. First we'll talk about the concept of offline-first apps, why they're cool, and why BLE could be a really compelling technology choice for you. After that I'll briefly introduce the main concepts of BLE, things like advertisements and how connections work.
+</p>
+
+<p>
+Then with that basic understanding in place I'm going to do a deep dive into six specific areas where things get kind of tricky, things which you won't discover reading Apple's documentation. For each one I'll explain what the issues are and give you some advice about what to do.
+</p>
+
+<p>
+Towards the end I'll touch on some non-Apple BLE implementations and how you might want to structure your code to work on multiple systems, drawing on the experience we have providing BLE support in the <a href="https://ditto.live/">Ditto SDK</a>.
+</p>
+
+<p>
+Let's get started.
+</p>
+
+<a href="https://octet-stream.net/assets/ble/Slide3.webp"><img src="https://octet-stream.net/assets/ble/Slide3-sml.webp"></a>
+
+<p>
+When I say the word "Bluetooth" your mind probably jumps to things like AirTags, game controllers, headphones—you know, usually some sort of gadget. Today I'm talking about a very different situation.
+</p>
+
+<p>
+We develop apps. These apps run on smartphones, maybe laptops, maybe desktops. Now I don't know each of you personally but you probably have an architecture like this. You've got a client that logs on to some sort of internet service, and then they exchange data back and forth with the service. This is what basically every popular mobile app does today.
+</p>
+
+<a href="https://octet-stream.net/assets/ble/Slide4.webp"><img src="https://octet-stream.net/assets/ble/Slide4-sml.webp"></a>
+
+<p>
+The trouble is, the server is not always online.
+</p>
+
+<a href="https://octet-stream.net/assets/ble/Slide5.webp"><img src="https://octet-stream.net/assets/ble/Slide5-sml.webp"></a>
+
+<p>
+There's a lot of buzz now about so-called "offline-first" apps. What this means is that even if the user is offline they can continue to work and use the app, as much as this makes sense, and then later when internet connectivity is restored their work and their activity will sync back up to the server.
+</p>
+
+<p>
+This is cool, but we can do better than that.
+</p>
+
+<a href="https://octet-stream.net/assets/ble/Slide6.webp"><img src="https://octet-stream.net/assets/ble/Slide6-sml.webp"></a>
+
+<p>
+What if our clients could continue to collaborate and share data while they can't reach the server?
+</p>
+
+<a href="https://octet-stream.net/assets/ble/Slide7.webp"><img src="https://octet-stream.net/assets/ble/Slide7-sml.webp"></a>
+
+<p>
+What if just one of them had an internet connection and acted as a gateway to propagate updates in both directions?
+</p>
+
+<p>
+What if users never even noticed that something happened?
+</p>
+
+<p>
+Now <em>that's</em> offline-first.
+</p>
+
+<a href="https://octet-stream.net/assets/ble/Slide8.webp"><img src="https://octet-stream.net/assets/ble/Slide8-sml.webp"></a>
+
+<p>
+Resilience against outages is one common reason why you might want to introduce peer-to-peer communication to your app. There are two other common ones. Even if the connection to the server is reliable, user-to-user latency might be lower if the devices can talk to each other directly. Also, for some apps the user experience can benefit if the app is aware of who or what is physically nearby. So if you want to take your great app to the next level then these are all pretty good ways to do it<a id="footnote-1-ref" href="#footnote-1">[1]</a>.
+</p>
+
+<p>
+If we want to make this happen, though, clearly we need some sort of local communication system. These devices need to be able to discover each other. They need to prove to each other that they're trustworthy. They need to be able to transfer arbitrary app data. They have to handle multiple connections. And they have to do all this without getting in the user's way.
+</p>
+
+<p>
+I'm here today to tell you that Bluetooth Low Energy is a gift from the technology industry to you. Yes, you, personally. It's a well-established tech that you can deploy today to do a lot of good things.
+</p>
+
+<a href="https://octet-stream.net/assets/ble/Slide9.webp"><img src="https://octet-stream.net/assets/ble/Slide9-sml.webp"></a>
+
+<p>
+Bluetooth gives you a lot of range. Modern iPhones can do over 100 metres in the open which is 3–4 times the distance of AWDL, which is the peer-to-peer WiFi technology that powers AirDrop. You can create large meshes through having multiple connections, easily meshes of 50+ devices in total. You can get tens of KB/s of real world throughput.
+</p>
+
+<p>
+The best thing is when you launch the app for the first time you get one prompt: do you want to allow Bluetooth? You say yes; you're now free to scan for and connect to as many other devices as you want. There's no ongoing interaction required there.
+</p>
+
+<p>
+If you turn on the background modes your your app is able to persist in the background and wake up to discover peers and connect to them and then exchange data, even while the phone's locked in your pocket. And it's an industry standard, as I alluded to before. There are equivalent APIs available on Windows, Android and Linux and they're all compatible with each other so you can build your app in a way that all of these things can talk to each other.
+</p>
+
+<p>
+So it's a really good deal but there are two downsides. One is it's kind of slow compared with, you know, the internet. The other is that actually using it is kind of quirky and that's the point of this presentation. I want you to leave this session with a basic understanding of how BLE works, how it fits into a peer-to-peer application, and equip you with various practical tips that you could use to maximize your success.
+</p>
+
+<a href="https://octet-stream.net/assets/ble/Slide10.webp"><img src="https://octet-stream.net/assets/ble/Slide10-sml.webp"></a>
+
+<p>
+Let's briefly describe how BLE works at a high level. BLE devices operate in one of two roles. These are called "central" and "peripheral". Very loosely speaking, a central is a client and a peripheral is a server. The peripheral continuously broadcasts advertisements on its radio. For an iPhone this is in the order of 20 advertisements per second. The central scans for these and then if the central identifies a peripheral that it thinks is interesting, it can try to initiate a connection. Conceptually peripherals ignore each other and centrals ignore each other. All the action happens between a peripheral and a central.
+</p>
+
+<p>
+In traditional BLE applications the gadgets are the peripherals that advertise, and the app on your phone is the central that scans for them. Now, our scenario is a bit different. Our devices are equal peers. If you have two iPhones side-by-side, which one's going to be the central? Which one's going to be the peripheral?
+</p>
+
+<a href="https://octet-stream.net/assets/ble/Slide11.webp"><img src="https://octet-stream.net/assets/ble/Slide11-sml.webp"></a>
+
+<p>
+The answer is "both". On all of the platforms that I've mentioned so far, devices are able to exist in both roles simultaneously. What's more, one central is able to handle multiple concurrent connections to peripherals, and one peripheral is able to handle multiple incoming connections from centrals. This means it's possible for your devices to form a relatively dense mesh with redundant paths.
+</p>
+
+<a href="https://octet-stream.net/assets/ble/Slide12.webp"><img src="https://octet-stream.net/assets/ble/Slide12-sml.webp"></a>
+
+<p>
+Next let's look at what happens when you actually establish a connection. BLE is heavily tied up in a protocol that's called GATT. The peripheral has a database of fields called "characteristics" that contain some short values. These characteristics are organised into groups called "services" and each of these services and characteristics are identified by some UUID.
+</p>
+
+<p>
+The thing that makes this particularly tricky is that the characteristics may be very small, maybe as low as 20 bytes depending on the device support that you have. That's not much data. What do you do if you want to transfer a message to another device that is longer than 20 bytes? Well, basically you have to chunk it up into little pieces and write to the same characteristic over and over and reassemble it at the other end. This is horrible, right?
+</p>
+
+<p>
+So GATT is great if you're connecting to a thermometer and trying to read the current temperature. That's what it's there for. But if we have two iPhones talking to each other it would be much more convenient for us if we had something resembling a TCP socket.
+</p>
+
+<p>
+I have good news: that exists.
+</p>
+
+<a href="https://octet-stream.net/assets/ble/Slide13.webp"><img src="https://octet-stream.net/assets/ble/Slide13-sml.webp"></a>
+
+<p>
+This diagram is a massive simplification but basically GATT sits on top of a protocol called L2CAP which provides reliable data streams over Bluetooth, very much looking like TCP. As a central you can ask Core Bluetooth to open one of these L2CAP channels and then you're able to read and write blobs of bytes directly into that channel and bypass GATT entirely. So if you can get away with it my suggestion is to ignore GATT entirely. Just use L2CAP channels. They're wonderful.
+</p>
+
+<a href="https://octet-stream.net/assets/ble/Slide14.webp"><img src="https://octet-stream.net/assets/ble/Slide14-sml.webp"></a>
+
+<p>
+So why <em>wouldn't</em> you be able to get away with it? Well, traditionally Apple and Google like to drag their feet when it comes to exposing the wonderful features of BLE to developers. GATT's been there from the very beginning but when it came to L2CAP, those APIs were only added in iOS 11 and Android 10 so if you use them it's only going to be supported on relatively new devices.
+</p>
+
+<p>
+Now, this is an Apple conference and you're probably all thinking, "Tom, iOS 11 was a very long time ago." You're right, actually, and in truth if you're targeting only iOS and Mac for your app then probably you're good to go. You probably don't need to worry about GATT at all. However, at Ditto we still support back to Android 6 so to support those devices on Bluetooth we maintain compatibility with GATT communication even though it's slower and more complicated.
+</p>
+
+<a href="https://octet-stream.net/assets/ble/Slide15.webp"><img src="https://octet-stream.net/assets/ble/Slide15-sml.webp"></a>
+
+<p>
+So let's recap. We have some phones. They're both advertising as a peripheral and scanning as a central, making connections to each other and as a result they form a nice interconnected mesh.
+</p>
+
+<p>
+You now understand the basics of BLE. Well done.
+</p>
+
+<a href="https://octet-stream.net/assets/ble/Slide16.webp"><img src="https://octet-stream.net/assets/ble/Slide17-sml.webp"></a>
+
+<p>
+I mentioned earlier that I chose six quirky areas that I was going to dive into. I've labelled those here. Some of them are going to be about advertising: what you put in your advertisements, how you track devices based on their advertisements. I'm also going to dive into the connections and how you secure them, how we set them up, and a little bit about how you might choose which peers to connect to based on the advertisements you hear.
+</p>
+
+<a href="https://octet-stream.net/assets/ble/Slide17.webp"><img src="https://octet-stream.net/assets/ble/Slide17-sml.webp"></a>
+
+<p>
+So, quirk number one. First let's discuss the contents of our BLE advertisements. Core Bluetooth only gives you a little bit of control over your advertisement content so you need to use it well. The thing you need to realise is that in general it's fast and cheap to receive and process advertisements but it's slow and expensive to initiate a connection to another device, relatively speaking. Therefore you want to be pretty sure that a certain peer is actually interesting and someone you want to talk to before you go to the trouble of establishing a connection to them.
+</p>
+
+<p>
+There are two pieces of data you can use to make this easier or get the result you want. The most important thing is a service UUID. For our purposes you can think of this as an application identifier. This depends a little bit on your app: if all of your app users could potentially be connecting to each other because they're all interested in each other, then that means that they should all advertise and scan for the <em>same</em> service UUID. If, however, your app is the kind of app where you have different customers with isolated groups of devices and those isolated groups never have any business talking to each other then you would prefer that they each use a different UUID.
+</p>
+
+<p>
+So how do you pick a UUID? Well, you just generate a random one actually. If you look into it you'll find that there's this whole scheme where paid-up members of the Bluetooth Special Interest Group can, you know, allocate short UUIDs to themselves for special nefarious purposes<a id="footnote-2-ref" href="#footnote-2">[2]</a> but you don't need to worry about that. That's not an issue.
+</p>
+
+<p>
+The other type of advertisement content that Core Bluetooth will let you configure is the field called the "local name" which lets you provide some sort of string unique to your device. This typically contains your device name—if you use a Bluetooth scanner app this will show you the name of your phone. Core Bluetooth doesn't give you direct control over the advertisement content but in my experience a safe maximum length for this is about 23 bytes<a id="footnote-3-ref" href="#footnote-3">[3]</a>.
+</p>
+
+<p>
+Here's where things get weird, though: if you port what I've just described here directly to Android, it also has an API to include the device name in the advertisement alongside the service UUID you specified<a id="footnote-4-ref" href="#footnote-4">[4]</a>. But if you try to <em>change</em> the local device name on Android, it does it. It has system-wide effects.
+</p>
+
+<a href="https://octet-stream.net/assets/ble/Slide18.webp"><img src="https://octet-stream.net/assets/ble/Slide18-sml.webp"></a>
+
+<p>
+This is a real photo from when I was working on this at Ditto. After configuring Bluetooth advertisements in an unrelated app my phone suddenly had a different name in Spotify. This is actually how I became aware of the problem. So that's not real good. So what's the solution?
+</p>
+
+<a href="https://octet-stream.net/assets/ble/Slide19.webp"><img src="https://octet-stream.net/assets/ble/Slide19-sml.webp"></a>
+
+<p>
+There's another type of field that can exist in a Bluetooth LE advertisement and that's called "manufacturer data". On iOS you're able to read the manufacturer data from an advertisement that you have received from the radio but you're unable to set it or configure it in your own advertisements that you transmit. Android's a bit more flexible: you can do both.
+</p>
+
+<p>
+So here's something you can do. iOS will write its unique device identifier into the local name field since that's what Core Bluetooth will let you do. Android and probably other platforms will use the manufacturer data instead. Then on all platforms when you're receiving advertisements you simply check both fields to see whether it contains the identifier you're looking for. So now you have a strategy that will work on all platforms.
+</p>
+
+<a href="https://octet-stream.net/assets/ble/Slide20.webp"><img src="https://octet-stream.net/assets/ble/Slide20-sml.webp"></a>
+
+<p>
+For the next quirky area let's talk about a little bit about identifying and tracking devices. When you're using Core Bluetooth to scan for advertisements or you're receiving incoming connections or something like that, it will give you an identifier—on Core Bluetooth it's a UUID—so that you can tell whether two events that occurred at different times relate to the same remote device or not.
+</p>
+
+<p>
+The trouble is this identifier is derived from the MAC address that this device is transmitting and for privacy reasons phones will use random MAC addresses and they will also rotate them at runtime so you're not really sure whether it's the same device or not. In fact, in one Android phone I tested it was super aggressive. It would actually change MAC address every single time it established a new BLE connection.
+</p>
+
+<p>
+For most applications where you're trying to reach out to peers and form a mesh you really want to know two things: which distinct remote peers exist, and if someone does decide to rotate their MAC address you'd want to be able to tell whether it's the same person who was there before, or whether this is a newcomer who needs to be integrated into the mesh. This is kind of basic information you need to create a good algorithm.
+</p>
+
+<p>
+The simplest solution for this is to incorporate some unique value into your local name or manufacturer data. It's best if this is something random and chosen by your app rather than a human name or else you won't be able to tell the difference between two devices called "iPhone". This problem has gotten worse now that Apple doesn't let you access the real device name any more. So that that's really helpful for tracking purposes.
+</p>
+
+<p>
+While you're doing all this, keep in mind that everything we we broadcast and everything we receive from Bluetooth advertisements is completely untrustworthy. It's completely unauthenticated. It's all public, so don't put private information in there. If some sort of nasty imposter or attacker comes along they could, you know, duplicate someone else's advertisements. They could have a device that pretends to be 1,000 different MAC addresses all claiming that they are running your app, something like that. So you have to treat this as an adversarial environment and most importantly you need to make sure you don't transmit any sensitive or private data until you have fully established a secure connection with another device.
+</p>
+
+<a href="https://octet-stream.net/assets/ble/Slide21.webp"><img src="https://octet-stream.net/assets/ble/Slide21-sml.webp"></a>
+
+<p>
+…which brings us to our next little topic: authentication and encryption. So Bluetooth has its own security mechanisms. You might be familiar with them. They usually involve pairing—we don't want pairing. We want our devices to be able to just go and find someone and connect to them and establish a secure link without having to, you know, type in numbers or something rubbish like that, that users don't want to do.
+</p>
+
+<p>
+The solution then is to configure BLE to operate in an insecure mode. We use insecure L2CAP channels which are unauthenticated. We use insecure characteristics if we're using GATT. Then we provide our own security layer on top at the application level.
+</p>
+
+<p>
+Now, I said before that an L2CAP Channel looks a lot like a TCP connection. This really works in our favour because we're talking about phones, not tiny microcontrollers. We can use industry-standard technology to provide authentication and encryption just like we would for a TCP connection. I would recommend you look into one of two options.
+</p>
+
+<a href="https://octet-stream.net/assets/ble/Slide22.webp"><img src="https://octet-stream.net/assets/ble/Slide22-sml.webp"></a>
+
+<p>
+<a href="https://en.wikipedia.org/wiki/Mutual_authentication#mTLS">Mutual TLS</a> is a variant of TLS. That's the regular encryption that you use to securely visit websites in your browser. The difference here is that <em>both</em> sides of the connection have to present a valid certificate and they mutually authenticate each other. The idea here is that your backend would issue a valid certificate to every device that's running your app and they all trust a common CA. If you want to you can include information in that certificate about who the user is, what they should have access to, stuff like that, but keep in mind that the certificate contents are effectively public.
+</p>
+
+<p>
+Mutual TLS is a great choice if you have a central registry of accounts. When users log in you can dish them out a certificate and then they have it ready to go for all peer-to-peer access.
+</p>
+
+<p>
+The other protocol you might find interesting is <a href="https://noiseprotocol.org/">Noise Protocol</a>. This is much simpler than TLS and it's famously used as the cryptography backend for <a href="https://en.wikipedia.org/wiki/WireGuard">WireGuard</a>, the VPN. Noise itself doesn't have any built-in notion of certificates, only static keys. If your app doesn't have a central source of accounts—if you just always form trust relationships on an ad-hoc basis like scanning each other's QR codes or something like that—then Noise might be a more natural fit for what you're trying to do than TLS.
+</p>
+
+<p>
+In short, the bad news is that BLE is an untrusted network. The good news is that our phones are so powerful now that we can just throw state-of-the-art industry-standard solutions at it and push nice secure tunnels right through the middle of that untrusted environment.
+</p>
+
+<a href="https://octet-stream.net/assets/ble/Slide23.webp"><img src="https://octet-stream.net/assets/ble/Slide23-sml.webp"></a>
+
+<p>
+All right, next. Number four. Let's talk about what you need to do to open an L2CAP channel. If you're acting as a peripheral, which you will remember is kind of like a server, you can open a listener that will receive incoming channel open requests in much the same way as TCP. Also like TCP, the client needs to specify a number which is kind of like a port number but in BLE that port number is called a "PSM". Again it's a 16-bit integer. The trouble is that when you start an L2CAP listener on iOS or Android the PSM is always dynamically allocated so you have to transmit it to the central in some way before they connect. Well, I say it's dynamically allocated. For some reason it's always 192 but we don't <em>know</em> that so we have to take it and communicate it to the central<a id="footnote-5-ref" href="#footnote-5">[5]</a>.
+</p>
+
+<p>
+There are two suggestions I have here about how you actually provide that to the central. I said before that at Ditto we provide backwards compatibility with GATT, so we provide an upgrade path to L2CAP, and this is a key part of how that works. If you're a peripheral that is capable of L2CAP then the service contains an extra characteristic that contains the PSM value. So when a central connects it tries to read that PSM value from that characteristic. If it gets one then it connects and forgets about GATT and now it's operating on L2CAP, but if that characteristic is <em>not</em> present then it assumes this peripheral doesn't know how to do it. It doesn't even look for it if the central itself is not capable, and then it stays in GATT.
+</p>
+
+<p>
+The alternative, if you're lucky enough to only have to deal with modern devices, is that you can potentially put the PSM directly in your advertisement. Then you don't even have to go looking for a characteristic and stuff around with that.
+</p>
+
+<a href="https://octet-stream.net/assets/ble/Slide24.webp"><img src="https://octet-stream.net/assets/ble/Slide24-sml.webp"></a>
+
+<p>
+Cool. Next let's have a chat about who you decide to connect to if you've got various devices that you're discovering. The first thing to know is that as a peripheral you have no control over anything. Centrals can connect to you; they can disconnect from you. You just have to put up with it. So if you're trying to achieve a particular result, if you're trying to achieve a particular mesh configuration, you have to come up with a policy and rules that apply to the <em>centrals</em> and who they decide to connect to.
+</p>
+
+<p>
+This is a huge topic but for today I want to draw your attention to two basic things.
+</p>
+
+<p>
+If you walk your phone towards another person at a distance you'll probably start hearing sporadic advertisements from them long before you're actually close enough to establish a reliable connection. This isn't very good use of resources, trying to connect to somebody who's unreachable, so a better approach is to listen to their advertisements over time and if the rate at which you're receiving advertisements from the same peer exceeds a certain threshold then say, "ah yes, this peer is probably relatively solid; I should actually take the time to connect."
+</p>
+
+<p>
+The trouble is that by default many Bluetooth APIs, including Core Bluetooth, will not tell you about every single advertisement that a given peer does. They'll just say, "oh, I found a peer; here it is" and just sort of wait for you to do something. That's not helpful to us, so you actually have to opt into an <a href="https://developer.apple.com/documentation/corebluetooth/cbcentralmanagerscanoptionallowduplicateskey">"allow duplicates" setting</a>, and then it will actually tell you about them all, acknowledging that this will use a little bit more battery power because your delegate's being invoked for every single one of these things.
+</p>
+
+<p>
+In Ditto we do all this in Objective C—that's why my examples are in Objective C. I hope everyone loves Objective C, right<a id="footnote-6-ref" href="#footnote-6">[6]</a>?
+</p>
+
+<p>
+Right. Then the question is "which peer should I actually connect to?" and "how do I form a good quality mesh?" which is again a large topic so let's focus on one subset of that problem.
+</p>
+
+<p>
+If you have two iPhones, they're both a central, they're both a peripheral, it's pretty easy for them to end up in a situation where they both connect to each other, and that's a waste. You've just used one of your connection slots for something that doesn't give you any benefit. You were already talking to each other.
+</p>
+
+<p>
+One simple way you can do that is by including some information in the local name field. I already talked about putting a random identifier in there. You can use some some sort of tiebreaker, like say, "Okay whoever has the lowest random number is going to be the central in this relationship and whoever has the highest number is going to be the peripheral." Ditto uses a more complex stateful algorithm than that but you can sort of see how by creating these kind of policies and rules you can cause the mesh to emerge in the shape that you want, by everybody following good local rules.
+</p>
+
+<a href="https://octet-stream.net/assets/ble/Slide25.webp"><img src="https://octet-stream.net/assets/ble/Slide25-sml.webp"></a>
+
+<p>
+Finally, in terms of quirks, let's talk about background modes. This is really exciting because you can share data with other people when you aren't even actively using the app. The first thing you need to know is that you need to turn on the background modes. This is in the capability settings of Xcode. There are no extra permissions required—I guess it just comes up in App Store review whether you actually need this or not.
+</p>
+
+<p>
+The main problem is that there are no guarantees whatsoever. Like everything with background modes, iOS will do exactly what it wants and your app just has to put up with it, so don't expect this to work on demand basically.
+</p>
+
+<p>
+There are also some restrictions that are put on the the Bluetooth communications while your app is in the background. There's some power saving measures. If you're advertising you don't get 20 per second anymore. It's much, much slower. And if you're scanning it doesn't operate at 100% duty cycle. It only scans for little snippets of time. The upshot of this is that it doesn't use nearly as much power but it might take much longer for devices to discover each other. If this is kind of worse if one of them's backgrounded or locked, the problem is much worse if you've got two devices which are backgrounded or locked because it just takes much longer for those random periods to overlap where one of them will actually detect the other.
+</p>
+
+<p>
+There are a couple more curve balls. Your advertisements that you're transmitting as a peripheral no longer contain the local name identifier. You only have the service UUID. So if you want to connect to and exchange data with a device that's in this state you kind of just have to see them and be like, "you don't have an identifier but I'm going to connect to you blindly and see what happens," because you can still go through your TLS negotiation and find out who they really were.
+</p>
+
+<p>
+The other problem is that if you're the central and you're scanning, even if you did that code snippet I pointed to before to request every single advertisement, iOS says, "I'm not doing that; you're in the background; you get <em>one</em>." That will probably mess up the algorithm you have to measure the advertisements over time so that means you now have to track whether you're in the background and do something slightly different.
+</p>
+
+<p>
+As you can see it's a bit of a hassle because of these extra restrictions but the user experience can be really cool and magical if, you know, you don't even have the internet and devices are just sending data to each other. And because of the way iOS works it wakes up your whole app so you can have this funny thing where your app wakes up to do Bluetooth and then it starts doing peer-to-peer WiFi at the same time because it happens to be running, and iOS for whatever reason doesn't have really fine-grained limits over what your app is able to do once it has been woken up in the background, so that might work in your favour too.
+</p>
+
+<p>
+So those are all the nitty-gritty tips that I wanted to discuss today. Before I wrap up I want to touch on how we've handled the different cross-platform implementations of BLE in the Ditto SDK.
+</p>
+
+<a href="https://octet-stream.net/assets/ble/Slide27.webp"><img src="https://octet-stream.net/assets/ble/Slide27-sml.webp"></a>
+
+<p>
+We need to support a lot of SDK targets. We have Android, Windows, Mac, we've got WASM, stuff like that, and to make that manageable we push as much logic as we possibly can into the common core code which is written in Rust, and then we compile that for each platform that we use.
+</p>
+
+<p>
+For Bluetooth we use platform specific drivers, so for Apple that's written in Objective C; for Android that's in Kotlin; on Windows we use the <a href="https://crates.io/crates/windows"><tt>windows-rs</tt> crate</a> to access the windows API; and on Linux we go through DBus to talk to bluez, which is the most common way of controlling the Bluetooth adapter on a Linux system. This way we get access to BLE functions on all platforms.
+</p>
+
+<p>
+While all of these are quite different in how you actually use them, at the end of the day they're all doing kind of the same thing. You can create an abstract generic interface across all of them. If you think about a central, it has to do certain things: it has to start scanning for a certain UUID; it has to stop scanning; it has to try to initiate a connection attempt; things like that.
+</p>
+
+<p>
+So what we do is we have a layer here where each of these four things implements a common interface and then at build time depending on which OS we're targeting for this particular build, one of those solutions is paired up with the Rust core. Then the Rust core doesn't really care which one of these it's talking to. There are functions in one direction and events in the other. If we have logic about which is the best peer to connect to and stuff like that, we write it once in Rust, and then these BLE implementations are as narrow as possible—the actual connect logic and the advertising logic and things like that.
+</p>
+
+<p>
+If you're trying to do BLE across multiple platforms, even if it's just two, I'd strongly recommend you use some sort of approach to consolidate code in a way that's possible to share across both, otherwise you'll end up with quite a lot of duplication.
+</p>
+
+<a href="https://octet-stream.net/assets/ble/Slide28.webp"><img src="https://octet-stream.net/assets/ble/Slide28-sml.webp"></a>
+
+<p>
+All right, very good. You now have pretty much everything you need to start writing peer-to-peer apps in BLE. This is a photo of my colleague, Ben. He's setting up 100 phones for integration testing. I hope you have as much fun as Ben working on your peer-to-peer apps! Thank you.
+</p>
+
+<hr>
+
+<ol>
+<li id="footnote-1">In hindsight I would have liked to give more concrete examples where this is really useful: flight attendants, field workers, hospitality, things like that. <a href="#footnote-1-ref">↩︎</a></li>
+<li id="footnote-2">The real reason is that if you have exact control over the advertisements you're transmitting, these shorter IDs allow you to use more of the limited space for other purposes. Apple gives us so little control it's not worth worrying about. <a href="#footnote-2-ref">↩︎</a></li>
+<li id="footnote-3">Technically the field <em>can</em> be longer than this but last time I investigated this, iOS wanted to insert another field alongside the local name which reduced the budget. <a href="#footnote-3-ref">↩︎</a></li>
+<li id="footnote-4">I avoided mentioning the difference between advertisements and scan responses, partly because this is an introductory talk, partly because Apple doesn't give you any control over this anyway. On other platforms like Android you will most likely want to configure a regular advertisement with the Service UUID and a scan response with the manufacturer data. <a href="#footnote-4-ref">↩︎</a></li>
+<li id="footnote-5">Obviously it's not always 192 if you have multiple listeners but I wanted to make the joke because it's mostly true. <a href="#footnote-5-ref">↩︎</a></li>
+<li id="footnote-6">Objective C vs Swift is one of those topics that people at Apple-themed conferences like to have mock flamewars about. It was mentioned in talks prior to this one. <a href="#footnote-6-ref">↩︎</a></li>
+</ol>
+
+]]></content:encoded>
+      <author>Thomas Karpiniec</author>
+      <guid>urn:uuid:3d8d5f04-9d57-11ef-83de-cb8eef9a8d8c</guid>
+      <pubDate>Fri, 17 May 2024 12:00:00 +1000</pubDate>
+    </item>
+    <item>
+      <title>A Watch Channel In Go</title>
+      <link>https://octet-stream.net/b/scb/watch-channel-in-go.html</link>
+      <description></description>
+      <content:encoded><![CDATA[<p>
+In this post I want to share a design pattern for a simple broadcast/watch channel in Go. I'm a relative golang newcomer and I've been learning how to do certain things that I already have a solution for in Rust&mdash;in this case tokio's watch channel, which provides updates of some value to an arbitrary number of receivers.
+</p>
+
+<p>
+As we know, channels in Go do not broadcast. You can have multiple receivers, but a value that is sent will only go to one of them. It is noted in the documentation that you can use <em>closing</em> a channel to perform a broadcast of sorts, since unlike a regular channel update this will be delivered to all receivers. This is a useful hint that will make this easier to build.
+</p>
+
+<p>
+You could build a broadcast channel more generally by using a subscribe/unsubscribe pattern where values are fanned out to each receiver explicitly. This is a bit of a hassle, though, and we can avoid that complexity by stipulating certain design criteria.
+</p>
+
+<ul>
+<li>We have a value that gets updated at arbitrary times and all subscribers should learn of the new value immediately.
+<li>The sender, which is setting new values, should not need to track subscribers/receivers.
+<li>A subscriber is not guaranteed to see every value if it changes multiple times quickly, but it will always know about the latest value once this situation settles down.
+<li>The sender will not experience backpressure&mdash;it can change values as often as it likes.
+<li>There are no race conditions when subscribing if there is also an update in progress. Either the subscriber sees the latest value, or they see the second-last value and get an immediate notification for the latest value.
+<li>Waiting for the next value should be a regular channel so it is easy to compose in a <tt>select</tt> for cancellation.
+</ul>
+
+So long as we're satisfied with these rules, this is relatively straightforward to implement.
+
+<pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="display:flex;"><span><span style="color:#204a87;font-weight:bold">type</span> <span style="color:#000">Sender</span> <span style="color:#204a87;font-weight:bold">struct</span> <span style="color:#000;font-weight:bold">{</span>
+</span></span><span style="display:flex;"><span>	<span style="color:#000">value</span>      <span style="color:#204a87;font-weight:bold">string</span>
+</span></span><span style="display:flex;"><span>	<span style="color:#000">lock</span>       <span style="color:#000">sync</span><span style="color:#000;font-weight:bold">.</span><span style="color:#000">Mutex</span>
+</span></span><span style="display:flex;"><span>	<span style="color:#000">changeWait</span> <span style="color:#204a87;font-weight:bold">chan</span> <span style="color:#204a87;font-weight:bold">bool</span>
+</span></span><span style="display:flex;"><span><span style="color:#000;font-weight:bold">}</span>
+</span></span></code></pre>
+
+<p>
+The sender needs three things: the current value that is being subscribed to, a lock to protect reading and writing of that value, and a channel to notify of updates. The value could be anything&mdash;here I've arbitrarily chosen a string.
+</p>
+
+<p>
+Here is the method that will allow somebody to subscribe to updates:
+</p>
+
+<pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="display:flex;"><span><span style="color:#204a87;font-weight:bold">func</span> <span style="color:#000;font-weight:bold">(</span><span style="color:#000">s</span> <span style="color:#ce5c00;font-weight:bold">*</span><span style="color:#000">Sender</span><span style="color:#000;font-weight:bold">)</span> <span style="color:#000">Subscribe</span><span style="color:#000;font-weight:bold">()</span> <span style="color:#000;font-weight:bold">(</span><span style="color:#204a87;font-weight:bold">string</span><span style="color:#000;font-weight:bold">,</span> <span style="color:#204a87;font-weight:bold">chan</span> <span style="color:#204a87;font-weight:bold">bool</span><span style="color:#000;font-weight:bold">)</span> <span style="color:#000;font-weight:bold">{</span>
+</span></span><span style="display:flex;"><span>	<span style="color:#000">s</span><span style="color:#000;font-weight:bold">.</span><span style="color:#000">lock</span><span style="color:#000;font-weight:bold">.</span><span style="color:#000">Lock</span><span style="color:#000;font-weight:bold">()</span>
+</span></span><span style="display:flex;"><span>	<span style="color:#204a87;font-weight:bold">defer</span> <span style="color:#000">s</span><span style="color:#000;font-weight:bold">.</span><span style="color:#000">lock</span><span style="color:#000;font-weight:bold">.</span><span style="color:#000">Unlock</span><span style="color:#000;font-weight:bold">()</span>
+</span></span><span style="display:flex;"><span>	<span style="color:#204a87;font-weight:bold">return</span> <span style="color:#000">s</span><span style="color:#000;font-weight:bold">.</span><span style="color:#000">value</span><span style="color:#000;font-weight:bold">,</span> <span style="color:#000">s</span><span style="color:#000;font-weight:bold">.</span><span style="color:#000">changeWait</span>
+</span></span><span style="display:flex;"><span><span style="color:#000;font-weight:bold">}</span>
+</span></span></code></pre>
+
+<p>
+So far, so simple. It's important here that the lock protects access of <em>both</em> the <tt>value</tt> and the <tt>changeWait</tt> channel.
+</p>
+
+<p>
+The subscriber should use it like this.
+</p>
+
+<pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="display:flex;"><span><span style="color:#204a87;font-weight:bold">for</span> <span style="color:#000;font-weight:bold">{</span>
+</span></span><span style="display:flex;"><span>	<span style="color:#000">value</span><span style="color:#000;font-weight:bold">,</span> <span style="color:#000">changed</span> <span style="color:#000;font-weight:bold">=</span> <span style="color:#000">sender</span><span style="color:#000;font-weight:bold">.</span><span style="color:#000">Subscribe</span><span style="color:#000;font-weight:bold">()</span>
+</span></span><span style="display:flex;"><span>	<span style="color:#8f5902;font-style:italic">// use value here
+</span></span></span><span style="display:flex;"><span><span style="color:#8f5902;font-style:italic"></span>	<span style="color:#ce5c00;font-weight:bold">&lt;-</span><span style="color:#000">changed</span>
+</span></span><span style="display:flex;"><span><span style="color:#000;font-weight:bold">}</span>
+</span></span></code></pre>
+
+<p>
+This is how we avoid tracking long-term subscribers: there is no such thing as a long-term subscriber, only code that calls <tt>Subscribe()</tt> in a loop every time it is interested in the next value.
+</p>
+
+<p>
+Next let's look at how the sender will update its value internally.
+</p>
+
+<pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="display:flex;"><span><span style="color:#204a87;font-weight:bold">func</span> <span style="color:#000;font-weight:bold">(</span><span style="color:#000">s</span> <span style="color:#ce5c00;font-weight:bold">*</span><span style="color:#000">Sender</span><span style="color:#000;font-weight:bold">)</span> <span style="color:#000">update</span><span style="color:#000;font-weight:bold">(</span><span style="color:#000">newValue</span> <span style="color:#204a87;font-weight:bold">string</span><span style="color:#000;font-weight:bold">)</span> <span style="color:#000;font-weight:bold">{</span>
+</span></span><span style="display:flex;"><span>	<span style="color:#000">s</span><span style="color:#000;font-weight:bold">.</span><span style="color:#000">lock</span><span style="color:#000;font-weight:bold">.</span><span style="color:#000">Lock</span><span style="color:#000;font-weight:bold">()</span>
+</span></span><span style="display:flex;"><span>	<span style="color:#204a87;font-weight:bold">defer</span> <span style="color:#000">s</span><span style="color:#000;font-weight:bold">.</span><span style="color:#000">lock</span><span style="color:#000;font-weight:bold">.</span><span style="color:#000">Unlock</span><span style="color:#000;font-weight:bold">()</span>
+</span></span><span style="display:flex;"><span>	<span style="color:#000">s</span><span style="color:#000;font-weight:bold">.</span><span style="color:#000">value</span> <span style="color:#000;font-weight:bold">=</span> <span style="color:#000">newValue</span>
+</span></span><span style="display:flex;"><span>	<span style="color:#204a87">close</span><span style="color:#000;font-weight:bold">(</span><span style="color:#000">s</span><span style="color:#000;font-weight:bold">.</span><span style="color:#000">changeWait</span><span style="color:#000;font-weight:bold">)</span>
+</span></span><span style="display:flex;"><span>	<span style="color:#000">s</span><span style="color:#000;font-weight:bold">.</span><span style="color:#000">changeWait</span> <span style="color:#000;font-weight:bold">=</span> <span style="color:#204a87">make</span><span style="color:#000;font-weight:bold">(</span><span style="color:#204a87;font-weight:bold">chan</span> <span style="color:#204a87;font-weight:bold">bool</span><span style="color:#000;font-weight:bold">)</span>
+</span></span><span style="display:flex;"><span><span style="color:#000;font-weight:bold">}</span>
+</span></span></code></pre>
+
+<p>
+We achieve the broadcast to all interested receivers by closing the channel. We create a new one and install this replacement while the mutex is still locked. This way, a receiver that calls <tt>Subscribe()</tt> always gets a consistent view; the value is always paired with the correct channel instance.
+</p>
+
+<p>
+For example, this by comparison would <em>not</em> work:
+</p>
+
+<pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="display:flex;"><span><span style="color:#204a87;font-weight:bold">for</span> <span style="color:#000;font-weight:bold">{</span>
+</span></span><span style="display:flex;"><span>	<span style="color:#000">value</span> <span style="color:#000;font-weight:bold">=</span> <span style="color:#000">sender</span><span style="color:#000;font-weight:bold">.</span><span style="color:#000">Value</span><span style="color:#000;font-weight:bold">()</span>
+</span></span><span style="display:flex;"><span>	<span style="color:#8f5902;font-style:italic">// use value
+</span></span></span><span style="display:flex;"><span><span style="color:#8f5902;font-style:italic"></span>	<span style="color:#ce5c00;font-weight:bold">&lt;-</span><span style="color:#000">sender</span><span style="color:#000;font-weight:bold">.</span><span style="color:#000">Changed</span><span style="color:#000;font-weight:bold">()</span>
+</span></span><span style="display:flex;"><span><span style="color:#000;font-weight:bold">}</span>
+</span></span></code></pre>
+
+<p>
+If <tt>value</tt> was updated between the calls to <tt>Value()</tt> and <tt>Changed()</tt> then the receiver would miss it.
+</p>
+
+<p>
+This would work somewhat better:
+</p>
+
+<pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="display:flex;"><span><span style="color:#204a87;font-weight:bold">for</span> <span style="color:#000;font-weight:bold">{</span>
+</span></span><span style="display:flex;"><span>	<span style="color:#000">changed</span> <span style="color:#000;font-weight:bold">=</span> <span style="color:#000">sender</span><span style="color:#000;font-weight:bold">.</span><span style="color:#000">Changed</span><span style="color:#000;font-weight:bold">()</span>
+</span></span><span style="display:flex;"><span>	<span style="color:#000">value</span> <span style="color:#000;font-weight:bold">=</span> <span style="color:#000">sender</span><span style="color:#000;font-weight:bold">.</span><span style="color:#000">Value</span><span style="color:#000;font-weight:bold">()</span>
+</span></span><span style="display:flex;"><span>	<span style="color:#8f5902;font-style:italic">// use value
+</span></span></span><span style="display:flex;"><span><span style="color:#8f5902;font-style:italic"></span>	<span style="color:#ce5c00;font-weight:bold">&lt;-</span><span style="color:#000">changed</span>
+</span></span><span style="display:flex;"><span><span style="color:#000;font-weight:bold">}</span>
+</span></span></code></pre>
+
+<p>
+However this could spuriously double-fire if a new value was introduced between the calls to <tt>Changed()</tt> and <tt>Value()</tt>. The subscriber has already seen the latest value, but it picked up an already-closed channel so it will loop around and get the same value again. Depending on the application this may or may not be a significant problem.
+</p>
+
+<p>
+I have no doubt this pattern (or something better) has been used many times in Go software before, however I didn't stumble across anything like it when I was researching the problem. Perhaps this write-up will save somebody else some time!
+</p>
+
+
+]]></content:encoded>
+      <author>Thomas Karpiniec</author>
+      <guid>urn:uuid:ce929062-9d6d-11ef-8dec-a7e0d1ab8604</guid>
+      <pubDate>Fri, 08 Nov 2024 12:44:00 +1100</pubDate>
+    </item>
+    <item>
+      <title>2024 Guide to Signing and Notarising a Single CLI Binary for Mac</title>
+      <link>https://octet-stream.net/b/scb/guide-to-signing-notarising-single-cli-binary-mac.html</link>
+      <description></description>
+      <content:encoded><![CDATA[<h2>Problem Statement</h2>
+
+<ol>
+<li>I'm compiling a single executable file for Mac, e.g., a Rust or Go program.
+<li>I want to distribute it directly to users outside the App Store.
+<li>I've paid 149 Australian dollarydoos for Apple's Developer Program and want to sign, notarise and package my program so that the user doesn't get any security warnings.
+<li>Building and signing should be automatable via SSH into a Mac.
+</ol>
+
+<h2>Introduction</h2>
+
+<p>
+Here is a brief guide to distributing CLI binaries to Mac users in a way that will satisfy Gatekeeper. I'm not an expert on any of these matters but I've found a solution that seems to work so that's good enough for me. Consider this a report from one developer-who-just-wants-to-get-the-job-done to another.
+</p>
+
+<p>
+Why have I titled this as a 2024 guide? Well, things move quickly in the Apple world. Many of the resources I found useful while researching this were still using <tt>xcrun altool</tt>, which stopped working last year. Similarly I expect what I write here to be out of date within a couple of years.
+</p>
+
+<h2>Distribution Format</h2>
+
+<p>
+The output of your compiler is some binary executable. Logically you can sign that using some sort of cryptographic identity. You might reasonably expect that this is the end of the matter and you can put your signed binary in a tarball or zip and send it to people. Sorry, no.
+</p>
+
+<p>
+Apart from signing your program you must also submit it to Apple for notarisation. They will do some analysis to check for malware and if this process is successful they will issue a notarisation ticket that any Mac can use to verify that Apple has approved this application. Users can either download this from Apple over the internet on demand or (preferably) you can staple it to your build artifact so they can verify trust locally.
+</p>
+
+<p>
+This is where we run into the first practical issue: Apple's notarisation service will not let you just upload a binary. It has to be a <tt>.dmg</tt>, a <tt>.pkg</tt> or a <tt>.zip</tt>. If you're like me you're probably thinking, "well a zip file doesn't sound bad; putting my binary in a zip for download is what I had in mind anyway." And indeed this is supported by the notarisation service. It's a bit like "here's a zip file of things I want to notarise".
+</p>
+
+<p>
+So you put your binary in the zip file and submit it and it succeeds. Sadly now you have two new problems: a zip file doesn't have any way for you to staple the ticket to it, and any zip files that a user downloads through a normal web browser get the quarantine flag, which means there is a security error trying to run the binary within, even if it's correctly signed. <b>Please note I might be wrong here</b>&mdash;if you know more please send me an email or toot&mdash;but I have been unable to find any solutions for developers to fix this apart from asking users to remove the attribute with <tt>xattr</tt>, or to download the file with a tool that won't add the quarantine flag like <tt>curl</tt>. <b>Tentative conclusion: zip files are asking for trouble.</b>
+</p>
+
+<p>
+So what's the alternative? If a user is downloading your CLI tool to use on their Mac, it wouldn't be the worst thing to create a <tt>.pkg</tt> installer. It would make more sense than a DMG&mdash;the little install wizard thing could automatically drop the binary into <tt>/usr/local/bin</tt> and it would immediately start working in their shell. It was a happy surprise for me that creating a simple <tt>.pkg</tt> installer is literally a one-line command. This gives you a <tt>something.pkg</tt> file that you can both sign and notarise. Since it passes these security checks, a user who downloads it through Safari will be able to continue without any security errors and your binary gets installed without any quarantine problems. This seems like a good way to do things. A user with more specific needs could extract it from the package or build it themselves (if your thing is open source).
+</p>
+
+<p>
+So that is our goal today: sign a binary, put it inside a pkg installer, sign and notarise that, then staple the notarisation ticket to the pkg.
+</p>
+
+<h2>Required Certificates</h2>
+
+<p>
+Two types of certificates are needed. One is a "Developer ID Application" key/certificate which will be used to sign the binary, and one is a "Developer ID Installer" key/certificate which will sign the package. Make sure you use the right one for each purpose or else you will get inscrutable errors from the notarisation service.
+</p>
+
+<p>
+An easy way to obtain these is to log in to your account in Xcode settings, click "Manage Certificates", then request the relevant certificates from the drop-down menu.
+</p>
+
+<a href="https://octet-stream.net/assets/xcode-certs.webp"><img src="https://octet-stream.net/assets/xcode-certs.webp"></a>
+
+<p>
+In the signing commands that follow we will refer to each certificate by its hash. You have other options but this type of identifier works and is precise. You can find out the certificates and their 40-character identifiers like this.
+</p>
+
+<pre>
+% security find-identity -v
+  1) AD28DC96C16D0CF033D123E20575C3AB2A9C4FA3 "Developer ID Application: Thomas Karpiniec (XRG3WZB747)"
+  2) 8A0C220778C2CF75CAD13A639977D814164F7C52 "Developer ID Installer: Thomas Karpiniec (XRG3WZB747)"
+     2 valid identities found
+</pre>
+
+<p>
+Here you can also see your Team ID (the jumble of letters and numbers in parentheses) which you will need shortly.
+</p>
+
+<h2>Credential Management</h2>
+
+<p>
+The signing certificates are stored in the keychain, your <tt>login.keychain</tt> by default. To submit notarisations you also need to authenticate with your Apple ID. The good news is that <tt>notarytool</tt> lets you store an Apple ID authentication in your keychain too. Go to your Apple ID settings on the web and create an App Specific Password, which will work independently of any 2FA you have going on. As a one-time job, create a profile in your keychain like this:
+</p>
+
+<pre>
+xcrun notarytool store-credentials SomeProfileName --apple-id "example@icloud.com" --team-id "XRG3WZB747"
+</pre>
+
+<p>
+Then in the future you will be able to use that profile with <tt>xcrun notarytool --keychain-profile SomeProfileName</tt> provided the keychain is unlocked.
+</p>
+
+<h2>SSH Considerations</h2>
+
+<p>
+There are two quirks to be aware of when you're trying to perform signing and notarisation operations over SSH rather than logged in to the Mac's GUI. The first is that you don't have access to the keychain by default in your SSH shell. You need to unlock it first, using a command like this:
+</p>
+
+<pre>
+security unlock-keychain -p "${SECRET}" login.keychain
+</pre>
+
+<p>
+Managing keychains/secrets appropriately is left as an exercise to the reader.
+</p>
+
+<p>
+The second trick is allowing the signing/notarisation programs to access the relevant keys. I'm convinced that in the past I was able to resolve this by going to the key settings in Keychain Access and allowing access from any application. For whatever reason this didn't work. Any commands run over SSH failed with a security error until I ran some <tt>codesign</tt> and <tt>xcrun notarytool</tt> commands from <tt>Terminal.app</tt> logged in to the Mac directly. Running these commands locally would put up a system dialog asking if they should be allowed access; after clicking <b>Always Allow</b> I would no longer see the dialog and they would also work correctly over SSH.
+</p>
+
+<h2>Putting It Together</h2>
+
+<p>
+Now that I've explained the motivations and preparations we can review the steps required:
+</p>
+
+<pre>
+# make sure keychain is unlocked
+security unlock-keychain -p "${SECRET}" login.keychain
+
+# sign the binary you compiled
+codesign -s "${APPLICATION_CERT_ID}" -o runtime -v -f "${PATH_TO_BINARY}"
+
+# put it in a directory
+mkdir install_dir
+cp "${PATH_TO_BINARY}" install_dir
+
+# make a pkg which installs everything in that directory into /usr/local/bin
+pkgbuild --identifier com.example.myapp --install-location /usr/local/bin/ --sign "${INSTALLER_CERT_ID}" --root ./install_dir myinstaller.pkg
+
+# submit it for notarisation and wait for the result
+xcrun notarytool submit --keychain-profile SomeProfileName myinstaller.pkg --wait
+
+# if it was successful, download and staple the ticket
+xcrun stapler staple myinstaller.pkg
+</pre>
+
+<p>
+A few things worth pointing out:
+</p>
+
+<ul>
+<li>It is widely reported that <tt>-o runtime</tt> is required for code signing. I'm not 100% sure if this advice remains correct but it worked. They say the same thing about <tt>--timestamp</tt> but maybe that's default now?
+<li><tt>--wait</tt> will make the notarising tool wait until your payload has been fully processed by Apple and you have the result. This is optional (you can asynchronously check the status via the returned submission UUID) but I think it's pretty useful.
+<li>If you want you can use <tt>productsign --sign INSTALLER_CERT_ID something.pkg something-signed.pkg</tt> to move signing to a later step instead of the <tt>--sign</tt> flag on <tt>pkgbuild</tt>. This worked out better for my build scripts which split responsibilities between app-specific artifact creation and notarisation.
+</ul>
+
+<h2>The End</h2>
+
+<p>
+By following the process here I was able to create a <tt>.pkg</tt> file which installed and ran cleanly on a Mac unrelated to my build machine. Hopefully this post was instructive and you can achieve the same.
+</p>
+
+<p>
+Before I go I want to link to a couple of troubleshooting guides in case you hit errors outside the happy path described here. If you've spent serious time doing Apple development you probably know about Eskimo, the 10x support engineer who inhabits Apple's forums and is the only reason anybody manages to ship anything on this platform. In recent years he's taken to consolidating FAQs and other guides into posts of his own. These are harder to find than Apple's official documentation but very high value, and there are a couple that are relevant to today's discussion.
+</p>
+
+<ul>
+<li><a href="https://forums.developer.apple.com/forums/thread/712005">Resolving errSecInternalComponent errors during code signing</a>
+<li><a href="https://forums.developer.apple.com/forums/thread/706442">Resolving Trusted Execution Problems</a>
+</ul>
+
+<p>I also want to call out Apple's <a href="https://developer.apple.com/documentation/technotes/tn3147-migrating-to-the-latest-notarization-tool">migration guide for the notarisation tool</a> which doubles as a pretty good summary of <tt>xcrun notarytool</tt>. Apologies to any American readers who are on edge because of the lack of letter "z" in this post.</p>
+
+]]></content:encoded>
+      <author>Thomas Karpiniec</author>
+      <guid>urn:uuid:e6aa170e-aee0-11ef-b28b-a7c0dc924aab</guid>
+      <pubDate>Sat, 30 Nov 2024 20:00:00 +1100</pubDate>
+    </item>
+    <item>
+      <title>Introducing the M17 Rust Toolkit</title>
+      <link>https://octet-stream.net/b/scb/introducing-the-m17-rust-toolkit.html</link>
+      <description></description>
+      <content:encoded><![CDATA[<p>
+I've been working on a new open source project for a while and it's coming to fruition! This week I made the first release of the <a href="https://octet-stream.net/p/m17rt">M17 Rust Toolkit</a> available on crates.io. The linked homepage has all the gory details and code examples and so on but unless you're familiar with amateur radio and M17 it's not going to make much sense.
+</p>
+
+<p>
+In this post I want to take a step back to introduce M17, explain why it's cool, and describe my goals for this Rust library.
+</p>
+
+<h2>A brief introduction to M17</h2>
+
+<p>
+The <a href="https://en.wikipedia.org/wiki/M17_(amateur_radio)">M17 Project</a> is a relatively new digital radio mode&mdash;in other words, an open standard for how computers can talk to each other using FM radios. It aims to be completely open source and able to be implemented by anyone. Started in 2019, it defines everything from the physical layer up to how voice data can be encoded using <a href="https://en.wikipedia.org/wiki/Codec_2">Codec 2</a>, a popular open source voice codec. This sets it apart from other digital voice modes that rely on proprietary voice codecs or have other problems that would limit amateurs' right to build and experiment.
+</p>
+
+<p>
+To support voice communication, M17 defines a type of transmission called a "stream". This is a series of frames transmitted consecutively to create a transmission of arbitrary length, providing 3200 bits per second of payload. This conveniently matches the amount of data required for Codec 2's 3200-bit mode. Of course, M17 doesn't require that this payload is Codec 2 data. So long as you mark it as a non-voice transmission it's perfectly okay to use a different codec or transmit some kind of non-audio data if that's what you want to do.
+</p>
+
+<p>
+M17 also defines a second type of transmission, packet mode. This will feel more familiar to anyone who's previously worked with old-school AX.25 packet radio. In this mode the radio sends bursts of data with up to 825 bytes of payload at an effective throughput approaching 4800 bits per second. (Sending larger packets is more efficient than sending lots of small ones.)
+</p>
+
+<p>
+The benefits over AX.25 are many and obvious. Most packet radio practitioners are still using 1200 bps AFSK, which is easy to tune and compatible with any FM radio, but it makes horrifically inefficient use of spectrum and the data rate is slow. There is no forward error correction so packets are very sensitive to noise or interference. M17 is faster, more efficient, and more resilient. The downside is that you can't use any old radio&mdash;you need <a href="https://wiki.m17foundation.org/index.php?title=Radio_compatibility_list">one that will support the data mode</a>, potentially requiring modifications.
+</p>
+
+<p>
+This might seem like a lot of work, and I suppose it is, but it brings many benefits. Since M17 is a versatile protocol, once you configure a radio for M17 voice then it's ready to go for a different use case involving M17 packet or vice versa. As the number of supported radios and configurations grows, everybody can build on top of this hardware base in different ways and enjoy much better performance than we ever could with AFSK.
+</p>
+
+<p>
+What this means is that at a high level M17 is actually pretty simple. You can transmit and receive arbitrary-length streams. You can transmit and receive short packets. Ignoring some small side channels for metadata, that's basically it. You can stuff whatever you like into those streams and packets. Go ahead and build something&mdash;the world is your oyster.
+</p>
+
+<h2>A high-level toolkit</h2>
+
+<p>
+I have ideas that I would like to build on top of M17. They don't have much to do with voice&mdash;more like bulletin boards, that sort of thing. For high-level applications like these, packets and streams become my communication primitives. Everything that happens at a lower layer is suddenly kind of boring. I don't want to be responsible for sending modulated audio to the sound card. For the most part I don't care what the TNC is doing. I just want my data in and out, presented as either a lossy stream or an atomic packet, and then I can do cool things with those.
+</p>
+
+<p>
+The toolkit is an attempt to provide exactly that foundation&mdash;for myself, and for anyone else who wants to build something. It <em>should</em> be possible to simply pick a sound card and start slinging packets, letting the M17 library take care of the details like the realtime processing loop. We have samples coming from the soundcard to demodulate, samples going out to the soundcard for transmission, potentially audio data coming in and going out for Codec 2 on a second sound card, and little buffers everywhere to make sure that data flows between all the components continuously and smoothly. To me, this is the most fiddly and annoying part of the job. I want to solve it once and then not have to think about it any more.
+</p>
+
+<p>
+This high level of integration requires me to make some assumptions about the kind of computer the library is running on. I need threads, files, audio and serial libraries, dynamic memory allocation, and so on. Basically it's only possible for me to bundle these things if I'm running on a "normal" modern operating system like Windows, Linux or Mac. At the same time much of the code relating to the M17 protocol is very mechanical&mdash;data is being massaged and encoded and shaped into baseband samples, all of which is pure computation. It would be a shame if this functionality was "locked up" behind a high-level API so that somebody with more specific needs couldn't access them.
+</p>
+
+<p>
+For this reason I decided to split the library into two (three if you count the Codec 2 module). <tt>m17app</tt> comes with all the bells and whistles and provides the high-level API. <tt>m17core</tt> requires as little as possible while providing basically all of the protocol algorithms required for M17. This way, if a developer is doing something special or building for an "abnormal" type of computer, then they can still take advantage of the toolkit. Having a clean low-level interface is less important to me than the high-level one but hopefully I can polish it up in due course.
+</p>
+
+<h2>Modularity</h2>
+
+<p>
+As much as is practical I would like the toolkit to have swappable components. The most obvious example is the <tt>Soundmodem</tt> type. When you create one it accepts an input, an output, and a PTT driver, all of which can be selected independently. They are defined in terms of Rust <a href="https://doc.rust-lang.org/book/ch10-02-traits.html">traits</a>, which means that you can write your own components to plug in and provide that functionality if the ones that come with the library aren't what you want. This makes the library easy to extend and use in new ways.
+</p>
+
+<p>
+However the modularity that excites me most is the easy ability to swap TNCs. One of the great things the M17 team has done is to create a <a href="https://github.com/M17-Project/M17_kiss/">KISS TNC specification</a>, which builds on the well-known <a href="http://www.ax25.net/kiss.aspx">KISS protocol</a> to provide more advanced features for M17. This is exciting because it allows us to break the chain in a well-defined way. On one side of the KISS link is the TNC, with its modem and radio. On the other side of the KISS link is the host, which is running some application, and these two sides talk to each other. The host sends streams and packets for transmission, and the TNC sends back streams and packets that were received by the radio. This is very close to the level of abstraction I wanted for the high-level API! What if we made a developer-facing API that was just an ergonomic wrapper around the "host" side of this relationship?
+</p>
+
+<p>
+There's nothing <em>forcing</em> me to use or support KISS. If the toolkit came with its own modem then it could use whatever internal API it wanted. Instead I decided the high-level part of the toolkit would <em>always</em> use KISS to communicate with the low-level part, even when both software modules are compiled and running in the same program and it doesn't make any difference to the end user. This is great because now the toolkit can flex in two ways:
+</p>
+
+<ol>
+<li>At runtime your application can decide to use an external KISS TNC, such as one provided by serial or TCP, and it will work exactly the same.
+<li>The soundmodem part of the toolkit can be extracted as a standalone KISS TNC and used with any <em>other</em> M17 software that uses a standard TNC, even if that software was not written with the toolkit or not even written in Rust.
+</ol>
+
+<p>
+This lets us do cool things like run our radio and TNC in one room and run the application from another room over WiFi, with very few code changes required.
+</p>
+
+<h2>Why Rust?</h2>
+
+<p>
+I quite like Rust. I've used it professionally for a few years now and I'm much better at it than C and C++. I can organise my code better and end up with fewer bugs. I also quite like Go but for DSP I wanted maximum efficiency in the compiled code and I didn't want to be limited to platforms that can support a Go runtime. For me, Rust was the sensible choice.
+</p>
+
+<p>
+It also seems like nobody else has done any work on M17 in Rust yet. If I want to promote M17, why not make it easy to use for developers using another popular programming language?
+</p>
+
+<h2>Licence fun</h2>
+
+<p>
+To the best of my knowledge this is the first open source M17 implementation released under a permissive licence. libm17, M17Client, OpenRTX and SDR++ all use forms of GPL. I'm not <em>trying</em> to be different. It's just my preference nowadays. Occasionally commentators on the internet think that M17 has a problem because all the software is GPL. The folks on the M17 Discord think this isn't a big deal at all and I'm inclined to agree. In practice there is little material difference for amateur radio operators.
+</p>
+
+<p>
+My choice of licence has had a couple of impacts on the development process, though. The main one is Codec 2 seems to be defined by its source code, which is LGPL. Rust doesn't have a stable ABI and statically links all dependencies. What this means is that if you take Codec 2 as a Rust dependency then to fulfil the requirements of LGPL you will probably need to distribute the source code of your application. That doesn't bother me a great deal as I have no plans to distribute closed source M17 software. On the off-chance that somebody does, I decided to move all Codec 2 processing into a third crate <tt>m17codec2</tt> so you only get it if you need it.</p>
+
+<p>
+For PCs, one "easy" way to handle the LGPL component in a proprietary program would be to dynamically link to a C shared library. There is a <a href="https://crates.io/crates/codec2-sys"><tt>codec2-sys</tt></a> crate for that purpose, however (hilariously) that crate <em>itself</em> is LGPL, so if you use it you have exactly the same problem. I'm not planning to do any extra work to make this easier; I've simply segregated the Codec 2 functionality and if this is a real problem for anybody then they can write their own dynamic linking or whatever it is they need to achieve compliance.
+</p>
+
+<p>
+This choice also meant that I couldn't crib from any GPL code while figuring out how M17 works. I ran <tt>m17-mod</tt> to create some test data to work from and then relied on <a href="https://spec.m17project.org">the M17 spec</a> to decode it. Once demodulation was working I wrote the code to go in the reverse direction. At this point I can say two things confidently:
+</p>
+
+<ol>
+<li>This is an independent implementation and I have the right to publish it under MIT.
+<li>The spec is very good, and I expect that anyone who wanted to build their own would have few problems doing so.
+</ol>
+
+<h2>Next steps</h2>
+
+<p>
+The main problem now is that the toolkit's quality isn't all that good yet. Some things are implemented scrappily and many things are not yet implemented at all. This is fine&mdash;it was always going to be an ongoing process. :)
+</p>
+
+<p>
+My short-term priorities are:
+</p>
+
+<ul>
+<li>Catch all error conditions and propagate them cleanly. Right now many problems are ignored and some of the more serious errors will panic. This isn't what we want from a well-behaved Rust library.
+<li>Increase test coverage. I've written it in a way that should be <em>amenable</em> to unit tests. I just haven't created enough of them yet.
+<li>Improve the demodulator's sensitivity. I wrote it using a "perfect" baseband sample as input which means it doesn't handle the distortion from a real radio receiver very well. It is okayish when using an RTL-SDR to receive. Anyway, lots of low-hanging fruit here.
+</ul>
+
+<p>
+If you decide to try using it, please send me an email and let me know how you get on!
+</p>
+
+]]></content:encoded>
+      <author>Thomas Karpiniec</author>
+      <guid>urn:uuid:d48b903b-1b5f-452d-8204-3b6cfe0a7a4d</guid>
+      <pubDate>Fri, 31 Jan 2025 12:10:41 +1100</pubDate>
+    </item>
+    <item>
+      <title>Giving up the dylib dream</title>
+      <link>https://octet-stream.net/b/scb/2025-03-31-giving-up-the-dylib-dream.html</link>
+      <description></description>
+      <content:encoded><![CDATA[<p>
+There is a tension in software development practices that I've been stewing on for a long time. Many situations are now common that feel wrong to me for some reason, reasons that feel more like professional offence or inelegance than something I could necessarily justify as a problem to a business analyst.
+</p>
+
+<ul>
+<li>"This program has 300 distinct dependencies, carrying a total supply chain risk greater than any human could possibly manage."<br />
+<li>"Compiling software in this programming language requires downloading material from a single domain run by a single entity and you're on your own if it becomes unavailable."<br />
+<li>"These 100 binaries on your computer which depend on a library with a security flaw will all need to be recompiled and redeployed, so you'd better make sure you don't miss any."
+</ul>
+
+<p>
+What I'm getting at here is the combined result of various hotly-contested arguments: static vs dynamic linking, stable vs unstable ABIs, centralised vs decentralised dependency distribution, large libraries vs small libraries, frequent updates vs stable releases, distros vs runtimes, repo/appstore vs direct download, memory-safe languages vs the rest. Each of these has its own compelling arguments on both sides. I've spent more time than is healthy wondering how to optimise these constraints, given that I'm responsible for essentially none of it and my opinions scarcely matter. Overthinking things can be its own fun I guess.
+</p>
+
+<p>
+The thing is you can't decide each of these arguments individually on its merits. There is no version of Rust that has a stable ABI and an ecosystem that favours the use of large slow-moving dynamic libraries downloaded directly from library vendors. That does not exist, and there is no reasonable opportunity for it to ever exist because of prior practice and how generics work. If you want ABI-stable mature libraries and enough of them to drive your entire PC experience you're going to be using C.
+</p>
+
+<p>
+In practice it seems we have to choose between four broad ecosystems of software distribution:
+</p>
+
+<ol>
+<li>Distros heavily based on C/C++ dylibs where code reuse is common but you have to give up on rigorous memory safety and some amount of programmer convenience actually writing the software, e.g. BSDs or more traditional Linux distros.
+<li>Compiled programming languages which expect little from the OS and provide their own library distribution system, e.g. Rust or Go.
+<li>Interpreted or VM languages with their own library system(s), e.g. Python, Java or web.
+<li>Systems that try to give each program exactly what it needs regardless of where it's running or compiled vs interpreted, e.g. NixOS or Flatpak.
+</ol>
+
+<p>
+If one of these four is what you want then your path forward is simple. If you prefer some weird combination, you end up like me writing blog posts like <a href="https://thomask.sdf.org/blog/2023/11/14/rust-without-crates-io.html">"Rust without crates.io"</a> which upset a lot of people.
+</p>
+
+<p>
+Looking at the problems at the top of this post, I (among others) feel an urge to embrace tradition. These problems are new! Maybe we should just keep writing new C code using mature libraries? But C also kind of sucks. It doesn't have hashmaps and I'm probably going to write a use-after-free by accident, whether or not that happens to be exploitable with modern mitigations or CHERI or whatever else they come up with. 
+</p>
+
+<p>
+But it goes further than these technical issues. When you choose 1&ndash;4 and go into the surrounding communities you choose some basic principles about how computers should work for both developers and users. You may look differently at IRC vs XMPP vs Discord, GitHub vs tarballs vs Forĝejo, PRs vs <tt>git send-email</tt>, or even copyleft vs permissive. You're not just choosing a programming language. You're choosing a culture and an aesthetic, not necessarily for yourself personally, but at least the prevailing opinions of the people you're going to be spending the most time around.
+</p>
+
+<p>
+I'm a bit sad that there are relatively few practical "ruts" to fall into but I don't think any of them is necessarily wrong. We all just need to find the one that's best for us in the present moment.
+</p>
+
+<p>
+For me, after wavering for a while between 1 and 2, I've decided that I need to pick a lane. Option 2 is where I'm going to spend my time. I'm willing to give up shared libraries for modern syntax and tooling and memory safety. I will accept Rust's dependency sprawl while remaining optimistic that the ecosystem will stabilise over time to provide foundational libraries with similar prestige to Boost. Larger binaries and increased memory use can be tolerated. The role of distribution security teams changes from updating the broken library to replacing all the binaries it touched, which is perfectly feasible when all of the inputs to each binary are centrally managed.
+</p>
+
+<p>
+All the same… even within option 2, maybe there are ways to soften the weaknesses?
+</p>
+
+<ul>
+<li>How about a "stable" crates.io mirror that suppresses all new crate versions by 2 weeks (except for those named in RUSTSEC advisories) so that bleeding edge developers can find the (hypothetical) <tt>build.rs</tt> malware first?
+<li>Distributions can resolve the minimum set of semver-compatible language-specific dependencies across <em>all</em> their packages instead of each one individually, thereby amortising the impact on end users. (Debian for one seems to try to do this for Rust.)
+<li>Distributions can ensure they vendor libraries from language-specific systems to provide availability via their mirror networks.
+<li>What if more Rust and Go programs provided man pages and otherwise tried to be as pleasant as possible for inclusion in traditional distros? (Many do!)
+</ul>
+
+<p>
+I'm looking forward to spending less time thinking about this. And in giving myself permission to step away from the C-based perspective, I'm also looking forward to seeing where <a href="https://www.redox-os.org/">Redox</a> ends up.
+</p>
+
+]]></content:encoded>
+      <author>Thomas Karpiniec</author>
+      <guid>urn:uuid:3b5f4654-8738-46b4-a039-c00e5bf5a5e0</guid>
+      <pubDate>Mon, 31 Mar 2025 23:45:28 +1100</pubDate>
+    </item>
+  </channel>
+</rss>

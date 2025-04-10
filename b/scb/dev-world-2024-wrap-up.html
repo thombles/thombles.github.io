@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>/dev/world 2024 wrap-up</title>
+<link rel="stylesheet" href="/assets/style.css">
+<link rel="alternate" type="application/rss+xml" title="RSS Feed" href="/b/scb/rss.xml">
+<link rel="alternate" type="application/atom+xml" title="Atom Feed" href="/b/scb/atom.xml">
+</head>
+<body>
+<div id="content">
+<nav>
+<a href="/"><div class="navitem">HOME</div></a>
+<a href="/p/"><div class="navitem">PROJECTS</div></a>
+<a href="/b/"><div class="navitem">BLOGS</div></a>
+<div class="clear"></div>
+</nav>
+<main>
+
+
+<h1>/dev/world 2024 wrap-up</h1>
+
+<p><i>13 May 2024</i></p>
+
+<p>
+For the first time in five years I made the trip to Melbourne to attend /dev/world, a conference for Apple-loving developers. I am something of an imposter there with a Pixel in my pocket<a id="footnote-1-ref" href="#footnote-1">[1]</a> and being ignorant of what Tim Cook announced most recently, but it's a fun and smart crowd and it was great to reconnect with people I haven't seen since last time.
+</p>
+
+<p>
+The event was again run in parallel with <a href="https://auc.edu.au/xworld/about/">X World</a>, AUC's conference for Apple system administrators. This is an area I've had little to do with myself but as I chatted with delegates the familiar sysadmin archetype shone through: a deep desire to make things <em>right</em>, pride in elevating their users, and varying degrees of cynicism about how all that's going. The developers fret about what changes they might need to make to their app ahead of a new OS release; the admins worry what that release will break across hundreds of apps and thousands of devices. We are bound together in hanging on for the ride.
+</p>
+
+<p>
+This year I was fortunate enough to present one of the sessions, in which I gave a crash course in how to use Bluetooth Low Energy (particularly Apple's Core Bluetooth API) to build a cross-platform offline-first app. AUC will be publishing those talks in due course so I'll share the video and a transcript later. I received nice feedback (thanks!) but in hindsight I would have tweaked the ratio of content to give more examples of offline-first apps and their benefits. Being someone interested in peer-to-peer systems both professionally and personally, it's easy for me to forget that most people aren't thinking about that sort of thing today, even as the pendulum swings gently away from the cloud towards the edge.
+</p>
+
+<p>
+Here are some of the cool things I picked up.
+</p>
+
+<a href="/assets/dw2024/louis.webp"><img src="/assets/dw2024/louis.webp"></a>
+
+<p>
+Louis Cremen recapped application security practices that he recommends (and trains people in professionally) and explained how sophisticated threat actors are achieving their most successful attacks: through us, developers. It's not just direct phishing now; he gave multiple examples of developers being lured by fake recruiters at interesting companies, sometimes being put through real-sounding interviews. These (foolish?) developers are tricked into running some malicious project files or other resources for a coding test, at which point their pwned machines are scanned to find any credentials, tokens or other goodies that provide access to their current employer's network. Unfortunately there's no easy way to protect against this at an organisation level, so look out for it I guess.
+</p>
+
+<p>
+Joel Rennich gave a keynote about recent changes to identity management in Apple platforms. Managed Apple IDs have gotten really good and organisations can set up federated identities that authenticate against something like Google Workspace or AD. These coexist nicely with personal Apple IDs on BYOD equipment and provide a nice balance between employer control and employee privacy. Meanwhile, passkeys are becoming increasingly popular in the enterprise so they're here to stay. (Joel didn't go into it but I know there has been some consternation about the value of passkeys for regular consumers.) Although passkeys can generally roam through iCloud, there is something you can do with attestations to verify a key is hardware-bound to an organisation's device, which is very interesting for enterprise security enthusiasts.
+</p>
+
+<p>
+Will Laws from AWS showed off their EC2 Mac instances and how these rented Mac Minis in the cloud are being used by major customers for auto-scaling CI/CD pipelines. The most interesting part is the custom hardware called "Nitro" that sits around the Mac Mini, allowing it to be spun up in a couple of minutes with whatever disk image you need—particularly useful if you want to maintain a matrix of different software versions for building or testing. It even includes a robotic finger for pressing the power button.
+</p>
+
+<p>
+Josh Deprez gave another amazing presentation about the things you can do with old Macs—in this case, a community effort to create <a href="http://marchintosh.com/globaltalk.html">an internet of AppleTalk networks</a>, bridged over the TCP/IP internet. The upshot is that you can play multiplayer pre-OSX games together or have a "world wide web" constructed from Hypercard stacks that are hosted on different people's Macs. If that weren't enough, Josh <a href="https://gitea.drjosh.dev/josh/jrouter">built their own internet router software for AppleTalk in Go</a>.
+</p>
+
+<p>
+Rob Amos from ANZ gave a very neat presentation about how to incorporate OpenTelemetry to aid debugging distributed systems. He recommends pushing span context all the way from the mobile apps themselves, rather than just treating an HTTP request as the start point. He gave a live demo using a backend server, an iOS app and an OpenTelemetry collector running on Honeycomb. By properly annotating the structured logs it was possible to follow the chain of events from the user tapping a button, to network requests, to DB operations on the server, back to committing the result to the local DB in the app. Despite having even used a fair bit of the tracing crate in Rust and experimenting with spans, this was the first time I got a really good appreciation for what OpenTelemetry looks like when you get all the pieces in place.
+</p>
+
+<a href="/assets/dw2024/sam.webp"><img src="/assets/dw2024/sam.webp"></a>
+
+<p>
+Sam Jarman put forward the most nuanced perspective I've yet seen about how to think about repetition in code. Moving past simplistic rules of thumb like DRY and YAGNI, he introduced the underappreciated method of analysis called <a href="https://en.wikipedia.org/wiki/Connascence">connascence</a>, which provides structure for thinking about how different parts of code are coupled together in different dimensions, and how to exchange stronger coupling for weaker coupling. To be honest I didn't manage to absorb all the details but this one will definitely deserve further reading.
+</p>
+
+<p>
+Last but not least, thanks to the AUC and the organisers for putting it on, and for delivering another wacky /dev/world quiz night.
+</p>
+
+<a href="/assets/dw2024/quiz.webp"><img src="/assets/dw2024/quiz.webp"></a>
+
+<hr>
+
+<ol>
+<li id="footnote-1">Since I was speaking this year I hatched a cheeky plan to give my presentation from a PC laptop. Just to, you know, think different. Historically there is a meme in the conference scene that projectors will "just work" on a Mac, will probably work on Windows if you press enough function keys, and will require you to type some obscure <tt>xrandr</tt> commands if you're using Linux. Therefore if I show up with a PC I want to be pretty darn sure that it will work as well as the Macs. When I actually tried my trusty old USB-C/HDMI dongle on my Dell XPS I found that it barely worked at all. It's possible that a different dongle would have helped but this was rapidly becoming not worth the trouble for an "I'm a PC" joke. Humiliating myself on stage didn't seem like a good idea so I shrugged and took the work-provided MBP, which of course worked fine.<br><br>I'm not sure what happens on Wayland. Maybe projectors just work? <a href="#footnote-1-ref">↩︎</a>
+</li>
+</ol>
+
+
+<hr>
+
+<p>
+<a href="/b/scb/">Serious Computer Business</a> Blog by Thomas Karpiniec<br>
+Posts <a href="/b/scb/rss.xml">RSS</a>, <a href="/b/scb/atom.xml">Atom</a>
+</p>
+
+</main>
+</div>
+</body>
+</html>
+

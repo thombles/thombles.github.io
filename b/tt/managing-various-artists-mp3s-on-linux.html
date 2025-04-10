@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Managing Various Artists MP3s on Linux</title>
+<link rel="stylesheet" href="/assets/style.css">
+<link rel="alternate" type="application/rss+xml" title="RSS Feed" href="/b/tt/rss.xml">
+<link rel="alternate" type="application/atom+xml" title="Atom Feed" href="/b/tt/atom.xml">
+</head>
+<body>
+<div id="content">
+<nav>
+<a href="/"><div class="navitem">HOME</div></a>
+<a href="/p/"><div class="navitem">PROJECTS</div></a>
+<a href="/b/"><div class="navitem">BLOGS</div></a>
+<div class="clear"></div>
+</nav>
+<main>
+
+
+<h1>Managing Various Artists MP3s on Linux</h1>
+
+<p><i>9 January 2025</i></p>
+
+<p>
+One of the most useful tags that shows up in MP3s (or most annoying, depending on your point of view) is <tt>TCMP</tt>. Setting this to the string <tt>1</tt> is often a good way to indicate that a track belongs to a <i>compilation</i>, and therefore your music player should put this album under the special "Various Artists" or "Compilations" section of your music library. 
+</p>
+
+<p>
+This is <a href="https://id3.org/iTunes%20Compilation%20Flag">an unofficial ID3 tag</a> from iTunes, albeit a much needed one because otherwise the best you can do is put "Various Artists" as the album artist (<tt>TPE2</tt>), the per-track artist as artist (<tt>TPE1</tt>) and hope that music players figure out what you actually wanted. Worse still, <tt>TPE2</tt> doesn't even really mean "album artist"&mdash;it's offically "Band/Orchestra/Accompaniment" but everything treats it as Album Artist. At least <tt>TCMP</tt> is unambiguous. <a href="https://github.com/cmus/cmus/blob/a15a9e0522d3a8d56dedfbb447d4499c78ceceb1/Doc/cmus.txt#L340-L346">This documentation from cmus</a> is a nice example of how awkward this all is.
+</p>
+
+<p>
+The difficulty with <tt>TCMP</tt> being both useful and unofficial is that often players are paying attention to it but <em>it doesn't show up in tag editing software</em>. It doesn't show in Clementine nor EasyTag nor exiftool. So if you have something incorrectly being lumped under "Various Artists" or vice versa you might be driven batty trying to figure out why.
+</p>
+
+<p>
+I recommend the tool <tt>mid3v2</tt> to figure out what's actually going on (<tt>python3-mutagen</tt> package on Debian). Here's an MP3 that isn't in a compilation:
+</p>
+
+<pre>
+$ <b>mid3v2 --list-raw 04\ -\ Travellers.mp3</b>
+Raw IDv2 tag info for 04 - Travellers.mp3
+TALB(encoding=&lt;Encoding.UTF16: 1&gt;, text=['Spectrum'])
+TCON(encoding=&lt;Encoding.UTF16: 1&gt;, text=['255'])
+TDRC(encoding=&lt;Encoding.LATIN1: 0&gt;, text=['2021'])
+TIT2(encoding=&lt;Encoding.UTF16: 1&gt;, text=['Travellers'])
+TPE1(encoding=&lt;Encoding.UTF16: 1&gt;, text=['vision string quartet'])
+TRCK(encoding=&lt;Encoding.UTF16: 1&gt;, text=['04/13'])
+</pre>
+
+<p>
+If you get a massive wall of output try appending <tt>| grep -v PIC</tt> to avoid seeing the album art.
+</p>
+
+<p>
+If the compilation flag is set you'll see a line like this:
+</p>
+
+<pre>
+TCMP(encoding=&lt;Encoding.UTF8: 3&gt;, text=['1'])
+</pre>
+
+<p>
+Add the <tt>TCMP</tt> flag to a file:
+</p>
+
+<pre>
+mid3v2 --TCMP 1 file.mp3
+</pre>
+
+<p>
+Remove the <tt>TCMP</tt> flag from a file:
+</p>
+
+<pre>
+mid3v2 --delete-frames TCMP file.mp3
+</pre>
+
+
+
+<hr>
+
+<p>
+<a href="/b/tt/">Tech Tidbits</a> Blog by Thomas Karpiniec<br>
+Posts <a href="/b/tt/rss.xml">RSS</a>, <a href="/b/tt/atom.xml">Atom</a>
+</p>
+
+</main>
+</div>
+</body>
+</html>
+

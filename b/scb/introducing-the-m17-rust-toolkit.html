@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Introducing the M17 Rust Toolkit</title>
+<link rel="stylesheet" href="/assets/style.css">
+<link rel="alternate" type="application/rss+xml" title="RSS Feed" href="/b/scb/rss.xml">
+<link rel="alternate" type="application/atom+xml" title="Atom Feed" href="/b/scb/atom.xml">
+</head>
+<body>
+<div id="content">
+<nav>
+<a href="/"><div class="navitem">HOME</div></a>
+<a href="/p/"><div class="navitem">PROJECTS</div></a>
+<a href="/b/"><div class="navitem">BLOGS</div></a>
+<div class="clear"></div>
+</nav>
+<main>
+
+
+<h1>Introducing the M17 Rust Toolkit</h1>
+
+<p><i>31 January 2025</i></p>
+
+<p>
+I've been working on a new open source project for a while and it's coming to fruition! This week I made the first release of the <a href="https://octet-stream.net/p/m17rt">M17 Rust Toolkit</a> available on crates.io. The linked homepage has all the gory details and code examples and so on but unless you're familiar with amateur radio and M17 it's not going to make much sense.
+</p>
+
+<p>
+In this post I want to take a step back to introduce M17, explain why it's cool, and describe my goals for this Rust library.
+</p>
+
+<h2>A brief introduction to M17</h2>
+
+<p>
+The <a href="https://en.wikipedia.org/wiki/M17_(amateur_radio)">M17 Project</a> is a relatively new digital radio mode&mdash;in other words, an open standard for how computers can talk to each other using FM radios. It aims to be completely open source and able to be implemented by anyone. Started in 2019, it defines everything from the physical layer up to how voice data can be encoded using <a href="https://en.wikipedia.org/wiki/Codec_2">Codec 2</a>, a popular open source voice codec. This sets it apart from other digital voice modes that rely on proprietary voice codecs or have other problems that would limit amateurs' right to build and experiment.
+</p>
+
+<p>
+To support voice communication, M17 defines a type of transmission called a "stream". This is a series of frames transmitted consecutively to create a transmission of arbitrary length, providing 3200 bits per second of payload. This conveniently matches the amount of data required for Codec 2's 3200-bit mode. Of course, M17 doesn't require that this payload is Codec 2 data. So long as you mark it as a non-voice transmission it's perfectly okay to use a different codec or transmit some kind of non-audio data if that's what you want to do.
+</p>
+
+<p>
+M17 also defines a second type of transmission, packet mode. This will feel more familiar to anyone who's previously worked with old-school AX.25 packet radio. In this mode the radio sends bursts of data with up to 825 bytes of payload at an effective throughput approaching 4800 bits per second. (Sending larger packets is more efficient than sending lots of small ones.)
+</p>
+
+<p>
+The benefits over AX.25 are many and obvious. Most packet radio practitioners are still using 1200 bps AFSK, which is easy to tune and compatible with any FM radio, but it makes horrifically inefficient use of spectrum and the data rate is slow. There is no forward error correction so packets are very sensitive to noise or interference. M17 is faster, more efficient, and more resilient. The downside is that you can't use any old radio&mdash;you need <a href="https://wiki.m17foundation.org/index.php?title=Radio_compatibility_list">one that will support the data mode</a>, potentially requiring modifications.
+</p>
+
+<p>
+This might seem like a lot of work, and I suppose it is, but it brings many benefits. Since M17 is a versatile protocol, once you configure a radio for M17 voice then it's ready to go for a different use case involving M17 packet or vice versa. As the number of supported radios and configurations grows, everybody can build on top of this hardware base in different ways and enjoy much better performance than we ever could with AFSK.
+</p>
+
+<p>
+What this means is that at a high level M17 is actually pretty simple. You can transmit and receive arbitrary-length streams. You can transmit and receive short packets. Ignoring some small side channels for metadata, that's basically it. You can stuff whatever you like into those streams and packets. Go ahead and build something&mdash;the world is your oyster.
+</p>
+
+<h2>A high-level toolkit</h2>
+
+<p>
+I have ideas that I would like to build on top of M17. They don't have much to do with voice&mdash;more like bulletin boards, that sort of thing. For high-level applications like these, packets and streams become my communication primitives. Everything that happens at a lower layer is suddenly kind of boring. I don't want to be responsible for sending modulated audio to the sound card. For the most part I don't care what the TNC is doing. I just want my data in and out, presented as either a lossy stream or an atomic packet, and then I can do cool things with those.
+</p>
+
+<p>
+The toolkit is an attempt to provide exactly that foundation&mdash;for myself, and for anyone else who wants to build something. It <em>should</em> be possible to simply pick a sound card and start slinging packets, letting the M17 library take care of the details like the realtime processing loop. We have samples coming from the soundcard to demodulate, samples going out to the soundcard for transmission, potentially audio data coming in and going out for Codec 2 on a second sound card, and little buffers everywhere to make sure that data flows between all the components continuously and smoothly. To me, this is the most fiddly and annoying part of the job. I want to solve it once and then not have to think about it any more.
+</p>
+
+<p>
+This high level of integration requires me to make some assumptions about the kind of computer the library is running on. I need threads, files, audio and serial libraries, dynamic memory allocation, and so on. Basically it's only possible for me to bundle these things if I'm running on a "normal" modern operating system like Windows, Linux or Mac. At the same time much of the code relating to the M17 protocol is very mechanical&mdash;data is being massaged and encoded and shaped into baseband samples, all of which is pure computation. It would be a shame if this functionality was "locked up" behind a high-level API so that somebody with more specific needs couldn't access them.
+</p>
+
+<p>
+For this reason I decided to split the library into two (three if you count the Codec 2 module). <tt>m17app</tt> comes with all the bells and whistles and provides the high-level API. <tt>m17core</tt> requires as little as possible while providing basically all of the protocol algorithms required for M17. This way, if a developer is doing something special or building for an "abnormal" type of computer, then they can still take advantage of the toolkit. Having a clean low-level interface is less important to me than the high-level one but hopefully I can polish it up in due course.
+</p>
+
+<h2>Modularity</h2>
+
+<p>
+As much as is practical I would like the toolkit to have swappable components. The most obvious example is the <tt>Soundmodem</tt> type. When you create one it accepts an input, an output, and a PTT driver, all of which can be selected independently. They are defined in terms of Rust <a href="https://doc.rust-lang.org/book/ch10-02-traits.html">traits</a>, which means that you can write your own components to plug in and provide that functionality if the ones that come with the library aren't what you want. This makes the library easy to extend and use in new ways.
+</p>
+
+<p>
+However the modularity that excites me most is the easy ability to swap TNCs. One of the great things the M17 team has done is to create a <a href="https://github.com/M17-Project/M17_kiss/">KISS TNC specification</a>, which builds on the well-known <a href="http://www.ax25.net/kiss.aspx">KISS protocol</a> to provide more advanced features for M17. This is exciting because it allows us to break the chain in a well-defined way. On one side of the KISS link is the TNC, with its modem and radio. On the other side of the KISS link is the host, which is running some application, and these two sides talk to each other. The host sends streams and packets for transmission, and the TNC sends back streams and packets that were received by the radio. This is very close to the level of abstraction I wanted for the high-level API! What if we made a developer-facing API that was just an ergonomic wrapper around the "host" side of this relationship?
+</p>
+
+<p>
+There's nothing <em>forcing</em> me to use or support KISS. If the toolkit came with its own modem then it could use whatever internal API it wanted. Instead I decided the high-level part of the toolkit would <em>always</em> use KISS to communicate with the low-level part, even when both software modules are compiled and running in the same program and it doesn't make any difference to the end user. This is great because now the toolkit can flex in two ways:
+</p>
+
+<ol>
+<li>At runtime your application can decide to use an external KISS TNC, such as one provided by serial or TCP, and it will work exactly the same.
+<li>The soundmodem part of the toolkit can be extracted as a standalone KISS TNC and used with any <em>other</em> M17 software that uses a standard TNC, even if that software was not written with the toolkit or not even written in Rust.
+</ol>
+
+<p>
+This lets us do cool things like run our radio and TNC in one room and run the application from another room over WiFi, with very few code changes required.
+</p>
+
+<h2>Why Rust?</h2>
+
+<p>
+I quite like Rust. I've used it professionally for a few years now and I'm much better at it than C and C++. I can organise my code better and end up with fewer bugs. I also quite like Go but for DSP I wanted maximum efficiency in the compiled code and I didn't want to be limited to platforms that can support a Go runtime. For me, Rust was the sensible choice.
+</p>
+
+<p>
+It also seems like nobody else has done any work on M17 in Rust yet. If I want to promote M17, why not make it easy to use for developers using another popular programming language?
+</p>
+
+<h2>Licence fun</h2>
+
+<p>
+To the best of my knowledge this is the first open source M17 implementation released under a permissive licence. libm17, M17Client, OpenRTX and SDR++ all use forms of GPL. I'm not <em>trying</em> to be different. It's just my preference nowadays. Occasionally commentators on the internet think that M17 has a problem because all the software is GPL. The folks on the M17 Discord think this isn't a big deal at all and I'm inclined to agree. In practice there is little material difference for amateur radio operators.
+</p>
+
+<p>
+My choice of licence has had a couple of impacts on the development process, though. The main one is Codec 2 seems to be defined by its source code, which is LGPL. Rust doesn't have a stable ABI and statically links all dependencies. What this means is that if you take Codec 2 as a Rust dependency then to fulfil the requirements of LGPL you will probably need to distribute the source code of your application. That doesn't bother me a great deal as I have no plans to distribute closed source M17 software. On the off-chance that somebody does, I decided to move all Codec 2 processing into a third crate <tt>m17codec2</tt> so you only get it if you need it.</p>
+
+<p>
+For PCs, one "easy" way to handle the LGPL component in a proprietary program would be to dynamically link to a C shared library. There is a <a href="https://crates.io/crates/codec2-sys"><tt>codec2-sys</tt></a> crate for that purpose, however (hilariously) that crate <em>itself</em> is LGPL, so if you use it you have exactly the same problem. I'm not planning to do any extra work to make this easier; I've simply segregated the Codec 2 functionality and if this is a real problem for anybody then they can write their own dynamic linking or whatever it is they need to achieve compliance.
+</p>
+
+<p>
+This choice also meant that I couldn't crib from any GPL code while figuring out how M17 works. I ran <tt>m17-mod</tt> to create some test data to work from and then relied on <a href="https://spec.m17project.org">the M17 spec</a> to decode it. Once demodulation was working I wrote the code to go in the reverse direction. At this point I can say two things confidently:
+</p>
+
+<ol>
+<li>This is an independent implementation and I have the right to publish it under MIT.
+<li>The spec is very good, and I expect that anyone who wanted to build their own would have few problems doing so.
+</ol>
+
+<h2>Next steps</h2>
+
+<p>
+The main problem now is that the toolkit's quality isn't all that good yet. Some things are implemented scrappily and many things are not yet implemented at all. This is fine&mdash;it was always going to be an ongoing process. :)
+</p>
+
+<p>
+My short-term priorities are:
+</p>
+
+<ul>
+<li>Catch all error conditions and propagate them cleanly. Right now many problems are ignored and some of the more serious errors will panic. This isn't what we want from a well-behaved Rust library.
+<li>Increase test coverage. I've written it in a way that should be <em>amenable</em> to unit tests. I just haven't created enough of them yet.
+<li>Improve the demodulator's sensitivity. I wrote it using a "perfect" baseband sample as input which means it doesn't handle the distortion from a real radio receiver very well. It is okayish when using an RTL-SDR to receive. Anyway, lots of low-hanging fruit here.
+</ul>
+
+<p>
+If you decide to try using it, please send me an email and let me know how you get on!
+</p>
+
+
+<hr>
+
+<p>
+<a href="/b/scb/">Serious Computer Business</a> Blog by Thomas Karpiniec<br>
+Posts <a href="/b/scb/rss.xml">RSS</a>, <a href="/b/scb/atom.xml">Atom</a>
+</p>
+
+</main>
+</div>
+</body>
+</html>
+

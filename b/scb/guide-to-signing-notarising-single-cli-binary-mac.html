@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>2024 Guide to Signing and Notarising a Single CLI Binary for Mac</title>
+<link rel="stylesheet" href="/assets/style.css">
+<link rel="alternate" type="application/rss+xml" title="RSS Feed" href="/b/scb/rss.xml">
+<link rel="alternate" type="application/atom+xml" title="Atom Feed" href="/b/scb/atom.xml">
+</head>
+<body>
+<div id="content">
+<nav>
+<a href="/"><div class="navitem">HOME</div></a>
+<a href="/p/"><div class="navitem">PROJECTS</div></a>
+<a href="/b/"><div class="navitem">BLOGS</div></a>
+<div class="clear"></div>
+</nav>
+<main>
+
+
+<h1>2024 Guide to Signing and Notarising a Single CLI Binary for Mac</h1>
+
+<p><i>30 November 2024</i></p>
+
+<h2>Problem Statement</h2>
+
+<ol>
+<li>I'm compiling a single executable file for Mac, e.g., a Rust or Go program.
+<li>I want to distribute it directly to users outside the App Store.
+<li>I've paid 149 Australian dollarydoos for Apple's Developer Program and want to sign, notarise and package my program so that the user doesn't get any security warnings.
+<li>Building and signing should be automatable via SSH into a Mac.
+</ol>
+
+<h2>Introduction</h2>
+
+<p>
+Here is a brief guide to distributing CLI binaries to Mac users in a way that will satisfy Gatekeeper. I'm not an expert on any of these matters but I've found a solution that seems to work so that's good enough for me. Consider this a report from one developer-who-just-wants-to-get-the-job-done to another.
+</p>
+
+<p>
+Why have I titled this as a 2024 guide? Well, things move quickly in the Apple world. Many of the resources I found useful while researching this were still using <tt>xcrun altool</tt>, which stopped working last year. Similarly I expect what I write here to be out of date within a couple of years.
+</p>
+
+<h2>Distribution Format</h2>
+
+<p>
+The output of your compiler is some binary executable. Logically you can sign that using some sort of cryptographic identity. You might reasonably expect that this is the end of the matter and you can put your signed binary in a tarball or zip and send it to people. Sorry, no.
+</p>
+
+<p>
+Apart from signing your program you must also submit it to Apple for notarisation. They will do some analysis to check for malware and if this process is successful they will issue a notarisation ticket that any Mac can use to verify that Apple has approved this application. Users can either download this from Apple over the internet on demand or (preferably) you can staple it to your build artifact so they can verify trust locally.
+</p>
+
+<p>
+This is where we run into the first practical issue: Apple's notarisation service will not let you just upload a binary. It has to be a <tt>.dmg</tt>, a <tt>.pkg</tt> or a <tt>.zip</tt>. If you're like me you're probably thinking, "well a zip file doesn't sound bad; putting my binary in a zip for download is what I had in mind anyway." And indeed this is supported by the notarisation service. It's a bit like "here's a zip file of things I want to notarise".
+</p>
+
+<p>
+So you put your binary in the zip file and submit it and it succeeds. Sadly now you have two new problems: a zip file doesn't have any way for you to staple the ticket to it, and any zip files that a user downloads through a normal web browser get the quarantine flag, which means there is a security error trying to run the binary within, even if it's correctly signed. <b>Please note I might be wrong here</b>&mdash;if you know more please send me an email or toot&mdash;but I have been unable to find any solutions for developers to fix this apart from asking users to remove the attribute with <tt>xattr</tt>, or to download the file with a tool that won't add the quarantine flag like <tt>curl</tt>. <b>Tentative conclusion: zip files are asking for trouble.</b>
+</p>
+
+<p>
+So what's the alternative? If a user is downloading your CLI tool to use on their Mac, it wouldn't be the worst thing to create a <tt>.pkg</tt> installer. It would make more sense than a DMG&mdash;the little install wizard thing could automatically drop the binary into <tt>/usr/local/bin</tt> and it would immediately start working in their shell. It was a happy surprise for me that creating a simple <tt>.pkg</tt> installer is literally a one-line command. This gives you a <tt>something.pkg</tt> file that you can both sign and notarise. Since it passes these security checks, a user who downloads it through Safari will be able to continue without any security errors and your binary gets installed without any quarantine problems. This seems like a good way to do things. A user with more specific needs could extract it from the package or build it themselves (if your thing is open source).
+</p>
+
+<p>
+So that is our goal today: sign a binary, put it inside a pkg installer, sign and notarise that, then staple the notarisation ticket to the pkg.
+</p>
+
+<h2>Required Certificates</h2>
+
+<p>
+Two types of certificates are needed. One is a "Developer ID Application" key/certificate which will be used to sign the binary, and one is a "Developer ID Installer" key/certificate which will sign the package. Make sure you use the right one for each purpose or else you will get inscrutable errors from the notarisation service.
+</p>
+
+<p>
+An easy way to obtain these is to log in to your account in Xcode settings, click "Manage Certificates", then request the relevant certificates from the drop-down menu.
+</p>
+
+<a href="/assets/xcode-certs.webp"><img src="/assets/xcode-certs.webp"></a>
+
+<p>
+In the signing commands that follow we will refer to each certificate by its hash. You have other options but this type of identifier works and is precise. You can find out the certificates and their 40-character identifiers like this.
+</p>
+
+<pre>
+% security find-identity -v
+  1) AD28DC96C16D0CF033D123E20575C3AB2A9C4FA3 "Developer ID Application: Thomas Karpiniec (XRG3WZB747)"
+  2) 8A0C220778C2CF75CAD13A639977D814164F7C52 "Developer ID Installer: Thomas Karpiniec (XRG3WZB747)"
+     2 valid identities found
+</pre>
+
+<p>
+Here you can also see your Team ID (the jumble of letters and numbers in parentheses) which you will need shortly.
+</p>
+
+<h2>Credential Management</h2>
+
+<p>
+The signing certificates are stored in the keychain, your <tt>login.keychain</tt> by default. To submit notarisations you also need to authenticate with your Apple ID. The good news is that <tt>notarytool</tt> lets you store an Apple ID authentication in your keychain too. Go to your Apple ID settings on the web and create an App Specific Password, which will work independently of any 2FA you have going on. As a one-time job, create a profile in your keychain like this:
+</p>
+
+<pre>
+xcrun notarytool store-credentials SomeProfileName --apple-id "example@icloud.com" --team-id "XRG3WZB747"
+</pre>
+
+<p>
+Then in the future you will be able to use that profile with <tt>xcrun notarytool --keychain-profile SomeProfileName</tt> provided the keychain is unlocked.
+</p>
+
+<h2>SSH Considerations</h2>
+
+<p>
+There are two quirks to be aware of when you're trying to perform signing and notarisation operations over SSH rather than logged in to the Mac's GUI. The first is that you don't have access to the keychain by default in your SSH shell. You need to unlock it first, using a command like this:
+</p>
+
+<pre>
+security unlock-keychain -p "${SECRET}" login.keychain
+</pre>
+
+<p>
+Managing keychains/secrets appropriately is left as an exercise to the reader.
+</p>
+
+<p>
+The second trick is allowing the signing/notarisation programs to access the relevant keys. I'm convinced that in the past I was able to resolve this by going to the key settings in Keychain Access and allowing access from any application. For whatever reason this didn't work. Any commands run over SSH failed with a security error until I ran some <tt>codesign</tt> and <tt>xcrun notarytool</tt> commands from <tt>Terminal.app</tt> logged in to the Mac directly. Running these commands locally would put up a system dialog asking if they should be allowed access; after clicking <b>Always Allow</b> I would no longer see the dialog and they would also work correctly over SSH.
+</p>
+
+<h2>Putting It Together</h2>
+
+<p>
+Now that I've explained the motivations and preparations we can review the steps required:
+</p>
+
+<pre>
+# make sure keychain is unlocked
+security unlock-keychain -p "${SECRET}" login.keychain
+
+# sign the binary you compiled
+codesign -s "${APPLICATION_CERT_ID}" -o runtime -v -f "${PATH_TO_BINARY}"
+
+# put it in a directory
+mkdir install_dir
+cp "${PATH_TO_BINARY}" install_dir
+
+# make a pkg which installs everything in that directory into /usr/local/bin
+pkgbuild --identifier com.example.myapp --install-location /usr/local/bin/ --sign "${INSTALLER_CERT_ID}" --root ./install_dir myinstaller.pkg
+
+# submit it for notarisation and wait for the result
+xcrun notarytool submit --keychain-profile SomeProfileName myinstaller.pkg --wait
+
+# if it was successful, download and staple the ticket
+xcrun stapler staple myinstaller.pkg
+</pre>
+
+<p>
+A few things worth pointing out:
+</p>
+
+<ul>
+<li>It is widely reported that <tt>-o runtime</tt> is required for code signing. I'm not 100% sure if this advice remains correct but it worked. They say the same thing about <tt>--timestamp</tt> but maybe that's default now?
+<li><tt>--wait</tt> will make the notarising tool wait until your payload has been fully processed by Apple and you have the result. This is optional (you can asynchronously check the status via the returned submission UUID) but I think it's pretty useful.
+<li>If you want you can use <tt>productsign --sign INSTALLER_CERT_ID something.pkg something-signed.pkg</tt> to move signing to a later step instead of the <tt>--sign</tt> flag on <tt>pkgbuild</tt>. This worked out better for my build scripts which split responsibilities between app-specific artifact creation and notarisation.
+</ul>
+
+<h2>The End</h2>
+
+<p>
+By following the process here I was able to create a <tt>.pkg</tt> file which installed and ran cleanly on a Mac unrelated to my build machine. Hopefully this post was instructive and you can achieve the same.
+</p>
+
+<p>
+Before I go I want to link to a couple of troubleshooting guides in case you hit errors outside the happy path described here. If you've spent serious time doing Apple development you probably know about Eskimo, the 10x support engineer who inhabits Apple's forums and is the only reason anybody manages to ship anything on this platform. In recent years he's taken to consolidating FAQs and other guides into posts of his own. These are harder to find than Apple's official documentation but very high value, and there are a couple that are relevant to today's discussion.
+</p>
+
+<ul>
+<li><a href="https://forums.developer.apple.com/forums/thread/712005">Resolving errSecInternalComponent errors during code signing</a>
+<li><a href="https://forums.developer.apple.com/forums/thread/706442">Resolving Trusted Execution Problems</a>
+</ul>
+
+<p>I also want to call out Apple's <a href="https://developer.apple.com/documentation/technotes/tn3147-migrating-to-the-latest-notarization-tool">migration guide for the notarisation tool</a> which doubles as a pretty good summary of <tt>xcrun notarytool</tt>. Apologies to any American readers who are on edge because of the lack of letter "z" in this post.</p>
+
+
+<hr>
+
+<p>
+<a href="/b/scb/">Serious Computer Business</a> Blog by Thomas Karpiniec<br>
+Posts <a href="/b/scb/rss.xml">RSS</a>, <a href="/b/scb/atom.xml">Atom</a>
+</p>
+
+</main>
+</div>
+</body>
+</html>
+

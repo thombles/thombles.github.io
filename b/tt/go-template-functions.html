@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Go template functions</title>
+<link rel="stylesheet" href="/assets/style.css">
+<link rel="alternate" type="application/rss+xml" title="RSS Feed" href="/b/tt/rss.xml">
+<link rel="alternate" type="application/atom+xml" title="Atom Feed" href="/b/tt/atom.xml">
+</head>
+<body>
+<div id="content">
+<nav>
+<a href="/"><div class="navitem">HOME</div></a>
+<a href="/p/"><div class="navitem">PROJECTS</div></a>
+<a href="/b/"><div class="navitem">BLOGS</div></a>
+<div class="clear"></div>
+</nav>
+<main>
+
+
+<h1>Go template functions</h1>
+
+<p><i>12 November 2024</i></p>
+
+<p>
+Recently I wanted to add a function to the data object for a Go template which would allow me to generate some parts dynamically.
+</p>
+
+<p>
+Here's what my first attempt looked like. For a template like this:
+</p>
+
+<pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="display:flex;"><span><span style="color:#000">&lt;p&gt;The number is </span><span style="color:#8f5902;font-style:italic">{{</span><span style="color:#c4a000">.Number</span><span style="color:#8f5902;font-style:italic">}}</span><span style="color:#000">&lt;/p&gt;
+</span></span></span><span style="display:flex;"><span><span style="color:#000">&lt;p&gt;</span><span style="color:#8f5902;font-style:italic">{{</span><span style="color:#c4a000">.CreateGreeting</span><span style="color:#f8f8f8;text-decoration:underline"> </span><span style="color:#4e9a06">&#34;Dave&#34;</span><span style="color:#8f5902;font-style:italic">}}</span><span style="color:#000">&lt;/p&gt;
+</span></span></span></code></pre>
+
+<p>I tried to use it like this:</p>
+
+<pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="display:flex;"><span><span style="color:#204a87;font-weight:bold">type</span> <span style="color:#000">Data</span> <span style="color:#204a87;font-weight:bold">struct</span> <span style="color:#000;font-weight:bold">{</span>
+</span></span><span style="display:flex;"><span>	<span style="color:#000">Number</span> <span style="color:#204a87;font-weight:bold">int</span>
+</span></span><span style="display:flex;"><span><span style="color:#000;font-weight:bold">}</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#204a87;font-weight:bold">func</span> <span style="color:#000;font-weight:bold">(</span><span style="color:#000">d</span> <span style="color:#ce5c00;font-weight:bold">*</span><span style="color:#000">Data</span><span style="color:#000;font-weight:bold">)</span> <span style="color:#000">CreateGreeting</span><span style="color:#000;font-weight:bold">(</span><span style="color:#000">name</span> <span style="color:#204a87;font-weight:bold">string</span><span style="color:#000;font-weight:bold">)</span> <span style="color:#000">template</span><span style="color:#000;font-weight:bold">.</span><span style="color:#000">HTML</span> <span style="color:#000;font-weight:bold">{</span>
+</span></span><span style="display:flex;"><span>	<span style="color:#204a87;font-weight:bold">return</span> <span style="color:#000">template</span><span style="color:#000;font-weight:bold">.</span><span style="color:#000">HTML</span><span style="color:#000;font-weight:bold">(</span><span style="color:#4e9a06">&#34;Hello, &lt;b&gt;&#34;</span> <span style="color:#ce5c00;font-weight:bold">+</span> <span style="color:#000">name</span> <span style="color:#ce5c00;font-weight:bold">+</span> <span style="color:#4e9a06">&#34;&lt;/b&gt;&#34;</span><span style="color:#000;font-weight:bold">)</span>
+</span></span><span style="display:flex;"><span><span style="color:#000;font-weight:bold">}</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#204a87;font-weight:bold">func</span> <span style="color:#000">main</span><span style="color:#000;font-weight:bold">()</span> <span style="color:#000;font-weight:bold">{</span>
+</span></span><span style="display:flex;"><span>	<span style="color:#000">tmpl</span> <span style="color:#ce5c00;font-weight:bold">:=</span> <span style="color:#000">template</span><span style="color:#000;font-weight:bold">.</span><span style="color:#000">Must</span><span style="color:#000;font-weight:bold">(</span><span style="color:#000">template</span><span style="color:#000;font-weight:bold">.</span><span style="color:#000">ParseFiles</span><span style="color:#000;font-weight:bold">(</span><span style="color:#4e9a06">&#34;template.gotmpl&#34;</span><span style="color:#000;font-weight:bold">))</span>
+</span></span><span style="display:flex;"><span>	<span style="color:#000">data</span> <span style="color:#ce5c00;font-weight:bold">:=</span> <span style="color:#000">Data</span><span style="color:#000;font-weight:bold">{</span>
+</span></span><span style="display:flex;"><span>		<span style="color:#000">Number</span><span style="color:#000;font-weight:bold">:</span> <span style="color:#0000cf;font-weight:bold">4</span><span style="color:#000;font-weight:bold">,</span>
+</span></span><span style="display:flex;"><span>	<span style="color:#000;font-weight:bold">}</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>	<span style="color:#204a87;font-weight:bold">var</span> <span style="color:#000">buff</span> <span style="color:#000">bytes</span><span style="color:#000;font-weight:bold">.</span><span style="color:#000">Buffer</span>
+</span></span><span style="display:flex;"><span>	<span style="color:#204a87;font-weight:bold">if</span> <span style="color:#000">err</span> <span style="color:#ce5c00;font-weight:bold">:=</span> <span style="color:#000">tmpl</span><span style="color:#000;font-weight:bold">.</span><span style="color:#000">Execute</span><span style="color:#000;font-weight:bold">(</span><span style="color:#ce5c00;font-weight:bold">&amp;</span><span style="color:#000">buff</span><span style="color:#000;font-weight:bold">,</span> <span style="color:#000">data</span><span style="color:#000;font-weight:bold">);</span> <span style="color:#000">err</span> <span style="color:#ce5c00;font-weight:bold">!=</span> <span style="color:#204a87;font-weight:bold">nil</span> <span style="color:#000;font-weight:bold">{</span>
+</span></span><span style="display:flex;"><span>		<span style="color:#000">log</span><span style="color:#000;font-weight:bold">.</span><span style="color:#000">Fatal</span><span style="color:#000;font-weight:bold">(</span><span style="color:#000">err</span><span style="color:#000;font-weight:bold">)</span>
+</span></span><span style="display:flex;"><span>	<span style="color:#000;font-weight:bold">}</span>
+</span></span><span style="display:flex;"><span>	<span style="color:#000">fmt</span><span style="color:#000;font-weight:bold">.</span><span style="color:#000">Println</span><span style="color:#000;font-weight:bold">(</span><span style="color:#000">buff</span><span style="color:#000;font-weight:bold">.</span><span style="color:#000">String</span><span style="color:#000;font-weight:bold">())</span>
+</span></span><span style="display:flex;"><span><span style="color:#000;font-weight:bold">}</span>
+</span></span></code></pre>
+
+<p>Template execution failed with an error, which was a little surprising to me as a Go newbie. The <tt>CreateGreeting</tt> function is right there!</p>
+
+<pre>
+template: template.gotmpl:2:5: executing "template.gotmpl" at &lt;.CreateGreeting&gt;: can't evaluate field CreateGreeting in type main.Data
+</pre>
+
+<p>
+The issue at hand is that I've used a pointer receiver for my <tt>Data</tt> object but I have passed it by value into the template. One possible fix is to pass the data by value to the helper function.
+</p>
+
+<pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="display:flex;"><span><span style="color:#204a87;font-weight:bold">func</span> <span style="color:#000;font-weight:bold">(</span><span style="color:#000">d</span> <span style="color:#000">Data</span><span style="color:#000;font-weight:bold">)</span> <span style="color:#000">CreateGreeting</span><span style="color:#000;font-weight:bold">(</span><span style="color:#000">name</span> <span style="color:#204a87;font-weight:bold">string</span><span style="color:#000;font-weight:bold">)</span> <span style="color:#000">template</span><span style="color:#000;font-weight:bold">.</span><span style="color:#000">HTML</span> <span style="color:#000;font-weight:bold">{</span> <span style="color:#8f5902;font-style:italic">// &lt;-- &#34;d Data&#34;, no pointer
+</span></span></span><span style="display:flex;"><span><span style="color:#8f5902;font-style:italic"></span>	<span style="color:#204a87;font-weight:bold">return</span> <span style="color:#000">template</span><span style="color:#000;font-weight:bold">.</span><span style="color:#000">HTML</span><span style="color:#000;font-weight:bold">(</span><span style="color:#4e9a06">&#34;Hello, &lt;b&gt;&#34;</span> <span style="color:#ce5c00;font-weight:bold">+</span> <span style="color:#000">name</span> <span style="color:#ce5c00;font-weight:bold">+</span> <span style="color:#4e9a06">&#34;&lt;/b&gt;&#34;</span><span style="color:#000;font-weight:bold">)</span>
+</span></span><span style="display:flex;"><span><span style="color:#000;font-weight:bold">}</span>
+</span></span></code></pre>
+
+<p>
+If I want to avoid the value receiver however, it turns out another possibility is to simply pass in a pointer in the first place.
+</p>
+
+<pre style="background-color:#f8f8f8;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code><span style="display:flex;"><span>	<span style="color:#204a87;font-weight:bold">if</span> <span style="color:#000">err</span> <span style="color:#ce5c00;font-weight:bold">:=</span> <span style="color:#000">tmpl</span><span style="color:#000;font-weight:bold">.</span><span style="color:#000">Execute</span><span style="color:#000;font-weight:bold">(</span><span style="color:#ce5c00;font-weight:bold">&amp;</span><span style="color:#000">buff</span><span style="color:#000;font-weight:bold">,</span> <span style="color:#ce5c00;font-weight:bold">&amp;</span><span style="color:#000">data</span><span style="color:#000;font-weight:bold">);</span> <span style="color:#000">err</span> <span style="color:#ce5c00;font-weight:bold">!=</span> <span style="color:#204a87;font-weight:bold">nil</span> <span style="color:#000;font-weight:bold">{</span>  <span style="color:#8f5902;font-style:italic">// &lt;-- now using &amp;data
+</span></span></span><span style="display:flex;"><span><span style="color:#8f5902;font-style:italic"></span>		<span style="color:#000">log</span><span style="color:#000;font-weight:bold">.</span><span style="color:#000">Fatal</span><span style="color:#000;font-weight:bold">(</span><span style="color:#000">err</span><span style="color:#000;font-weight:bold">)</span>
+</span></span><span style="display:flex;"><span>	<span style="color:#000;font-weight:bold">}</span>
+</span></span></code></pre>
+
+<p>
+This also gives me the output I expect:
+</p>
+
+<pre>
+&lt;p&gt;The number is 4&lt;/p&gt;
+&lt;p&gt;Hello, &lt;b&gt;Dave&lt;/b&gt;&lt;/p&gt;
+</pre>
+
+
+<hr>
+
+<p>
+<a href="/b/tt/">Tech Tidbits</a> Blog by Thomas Karpiniec<br>
+Posts <a href="/b/tt/rss.xml">RSS</a>, <a href="/b/tt/atom.xml">Atom</a>
+</p>
+
+</main>
+</div>
+</body>
+</html>
+

@@ -1,0 +1,303 @@
+<?xml version="1.0" encoding="UTF-8"?><rss version="2.0" xmlns:content="http://purl.org/rss/1.0/modules/content/">
+  <channel>
+    <title>Tech Tidbits</title>
+    <link>https://octet-stream.net/b/tt/</link>
+    <description></description>
+    <managingEditor>tom.karpiniec@outlook.com (Thomas Karpiniec)</managingEditor>
+    <pubDate>Thu, 10 Apr 2025 20:12:49 +1000</pubDate>
+    <item>
+      <title>DNS Issues on a Nokia FastMile 5G</title>
+      <link>https://octet-stream.net/b/tt/dns-issues-on-a-nokio-fastmile-5g.html</link>
+      <description></description>
+      <content:encoded><![CDATA[<p>
+<a href="https://www.nokia.com/networks/fixed-networks/fastmile/5g-gateway-32-2/">Nokia FastMile 5G Gateway</a>
+</p>
+
+<pre>
+ProductClass:3TG01797
+HWVer:3TG01797AMFA
+SWVer:1.2304.00.0445
+</pre>
+
+<p>
+For around six months my home internet has been provided by a Nokia modem, a unit my ISP supplied and I am obliged to use. I have various devices connected both via the LAN port and WiFi.
+</p>
+
+<p>
+Over time I have observed a problem: the modem's DNS server stops responding for periods of time ranging from minutes to hours. While it is in this state IP traffic is flowing normally and existing TCP connections continue to work. Power cycling the modem always fixes it. I haven't been able to spot anything suspicious in the modem's own system logs that would correlate with the failures.
+</p>
+
+<p>
+While it is possible that my unit is faulty, to me the nature of the fault feels more like a software bug. The admin interface has a firmware upgrade feature but the files are not publicly available on Nokia's website. I'm not even sure if a newer version exists than what I have.
+</p>
+
+<p>
+At this point I'm hesitant to undertake the hassle of seeking a replacement modem since it may be difficult to convince them that a problem exists, and there's a reasonable chance the new unit will have the same flaw anyway. If it's practical to do so I'd rather work around the problem myself.
+</p>
+
+<p>
+I believe I have accomplished a workaround but this has been more tedious than I hoped.
+</p>
+
+<h2>Plan A: Set a different DNS server via DHCP</h2>
+
+<p>
+The easiest fix would be to set a different DNS server like 1.1.1.1 or 8.8.8.8 which will continue to be accessible even when the modem goes into its buggy state. The modem lets you configure many aspects of the DHCP server, however sadly there is no option to customise the DNS server IP. It always directs clients to use the modem itself. No good.
+</p>
+
+<h2>Plan B: Substitute DHCP server</h2>
+
+<p>
+I already have a couple of Raspberry Pis that are always powered on and connected to the modem via Ethernet. Why not press one of those into service as a DHCP server and disable the one on the modem?
+</p>
+
+<p>
+When I tried this I found that the modem does not bridge DHCP traffic between its wired and wireless interfaces. That is, the Pi could issue IPs to other devices on the same switch but WiFi clients would never get an IPv4 address. I didn't test if a DHCP server on the WiFi side works since I didn't want to run it that way anyway.
+</p>
+
+<p>
+Of course, IPv6 was still working correctly on WiFi but figuring out how to usefully run an IPv6-only LAN was out of scope for this fix.
+</p>
+
+<h2>Plan C: Double router</h2>
+
+<p>
+With a little bit of sadness, I switched off the WiFi on the Nokia and plugged in a spare TP-Link WAP. This provides another layer of NAT, which is unnecessary, but happens to provide more control over the DHCP so that I could give all clients a different DNS server that's located out on the internet.
+</p>
+
+<p>
+This is inelegant, no doubt. Together with the CGNAT there are now three layers of translation between my WiFi and the internet. It works well enough, though.
+</p>
+
+<p>
+The main difficulty I had was that the Nokia supports more advanced WiFi security&mdash;WPA3 I believe&mdash;and when I put in the older TP-Link with the same SSID, many devices refused to accept the security downgrade until I explicitly forgot and re-joined the WiFi network.
+</p>
+
+<p>
+So it's all been a bit of a pain. Fingers crossed it will remain stable from here on.
+</p>
+
+]]></content:encoded>
+      <author>Thomas Karpiniec</author>
+      <guid>urn:uuid:c0f6524b-6304-4a9f-a00e-528191e76cea</guid>
+      <pubDate>Sat, 21 Dec 2024 14:15:55 +1100</pubDate>
+    </item>
+    <item>
+      <title>Bash&#39;s ctrl-o timesaver</title>
+      <link>https://octet-stream.net/b/tt/bash-ctrl-o-timesaver.html</link>
+      <description></description>
+      <content:encoded><![CDATA[<p>
+I have long been an enthusiastic user of the reverse search (ctrl-r) feature in the bash shell. To recap, if you have a history of typed commands that looks like this:
+</p>
+
+<pre>
+...
+make build
+make test
+make deploy
+...
+</pre>
+
+<p>
+...then instead of typing out <tt>make build</tt> in full the next time you can type <tt><b>ctrl-r b u i</b></tt> which shows a preview like so:
+</p>
+
+<pre>
+(reverse-i-search)`bui': make build
+</pre>
+
+<p>
+Now you can press <tt><b>enter</b></tt> and the command runs.
+</p>
+
+<p>
+Now suppose you want to run the those three historical <tt>make</tt> commands, one at a time, in sequence? Past foolish me would have done something like <tt><b>ctrl-r b u i enter ctrl-r t e s enter ctrl-r d e p enter</b></tt>.
+</p>
+
+<p>
+The other day I learnt that you can do: <tt><b>ctrl-r b u i ctrl-o ctrl-o enter</b></tt>. Each time you press <tt><b>ctrl-o</b></tt> it runs the command and then replaces the search prompt with the command that followed it.
+</p>
+
+<p>
+So this is a very fast way to go back and re-run a sequence of commands. Now I just need to make my muscle memory use it...
+</p>
+
+]]></content:encoded>
+      <author>Thomas Karpiniec</author>
+      <guid>urn:uuid:1bd9888c-b314-4449-8000-f84127503be9</guid>
+      <pubDate>Mon, 23 Dec 2024 10:42:17 +1100</pubDate>
+    </item>
+    <item>
+      <title>Managing Various Artists MP3s on Linux</title>
+      <link>https://octet-stream.net/b/tt/managing-various-artists-mp3s-on-linux.html</link>
+      <description></description>
+      <content:encoded><![CDATA[<p>
+One of the most useful tags that shows up in MP3s (or most annoying, depending on your point of view) is <tt>TCMP</tt>. Setting this to the string <tt>1</tt> is often a good way to indicate that a track belongs to a <i>compilation</i>, and therefore your music player should put this album under the special "Various Artists" or "Compilations" section of your music library. 
+</p>
+
+<p>
+This is <a href="https://id3.org/iTunes%20Compilation%20Flag">an unofficial ID3 tag</a> from iTunes, albeit a much needed one because otherwise the best you can do is put "Various Artists" as the album artist (<tt>TPE2</tt>), the per-track artist as artist (<tt>TPE1</tt>) and hope that music players figure out what you actually wanted. Worse still, <tt>TPE2</tt> doesn't even really mean "album artist"&mdash;it's offically "Band/Orchestra/Accompaniment" but everything treats it as Album Artist. At least <tt>TCMP</tt> is unambiguous. <a href="https://github.com/cmus/cmus/blob/a15a9e0522d3a8d56dedfbb447d4499c78ceceb1/Doc/cmus.txt#L340-L346">This documentation from cmus</a> is a nice example of how awkward this all is.
+</p>
+
+<p>
+The difficulty with <tt>TCMP</tt> being both useful and unofficial is that often players are paying attention to it but <em>it doesn't show up in tag editing software</em>. It doesn't show in Clementine nor EasyTag nor exiftool. So if you have something incorrectly being lumped under "Various Artists" or vice versa you might be driven batty trying to figure out why.
+</p>
+
+<p>
+I recommend the tool <tt>mid3v2</tt> to figure out what's actually going on (<tt>python3-mutagen</tt> package on Debian). Here's an MP3 that isn't in a compilation:
+</p>
+
+<pre>
+$ <b>mid3v2 --list-raw 04\ -\ Travellers.mp3</b>
+Raw IDv2 tag info for 04 - Travellers.mp3
+TALB(encoding=&lt;Encoding.UTF16: 1&gt;, text=['Spectrum'])
+TCON(encoding=&lt;Encoding.UTF16: 1&gt;, text=['255'])
+TDRC(encoding=&lt;Encoding.LATIN1: 0&gt;, text=['2021'])
+TIT2(encoding=&lt;Encoding.UTF16: 1&gt;, text=['Travellers'])
+TPE1(encoding=&lt;Encoding.UTF16: 1&gt;, text=['vision string quartet'])
+TRCK(encoding=&lt;Encoding.UTF16: 1&gt;, text=['04/13'])
+</pre>
+
+<p>
+If you get a massive wall of output try appending <tt>| grep -v PIC</tt> to avoid seeing the album art.
+</p>
+
+<p>
+If the compilation flag is set you'll see a line like this:
+</p>
+
+<pre>
+TCMP(encoding=&lt;Encoding.UTF8: 3&gt;, text=['1'])
+</pre>
+
+<p>
+Add the <tt>TCMP</tt> flag to a file:
+</p>
+
+<pre>
+mid3v2 --TCMP 1 file.mp3
+</pre>
+
+<p>
+Remove the <tt>TCMP</tt> flag from a file:
+</p>
+
+<pre>
+mid3v2 --delete-frames TCMP file.mp3
+</pre>
+
+
+]]></content:encoded>
+      <author>Thomas Karpiniec</author>
+      <guid>urn:uuid:c6b57089-dc8b-4bb7-b417-da820cff28d1</guid>
+      <pubDate>Thu, 09 Jan 2025 20:46:20 +1100</pubDate>
+    </item>
+    <item>
+      <title>Disabling the LED on a new Razer Cobra</title>
+      <link>https://octet-stream.net/b/tt/disabling-the-led-on-razer-cobra.html</link>
+      <description></description>
+      <content:encoded><![CDATA[<p>
+Recently my mouse began to die and I went searching for a replacement. I wanted something not too cheap but also not too expensive and gamery and eventually picked up a <a href="https://www.razer.com/gaming-mice/razer-cobra">Razer Cobra</a>. It's wired, nice and light, doesn't have an excess of buttons, and it's supposedly suitable for my style of mouse grip ("fingertip", according to companies who make mice). It's only been a few days but so far I'm quite happy with it. It's responsive and feels nice to use, though the button clicks are pretty loud.
+</p>
+
+<p>
+I plugged this into a system running Debian testing (trixie) and had no intention of doing any sort of fancy mouse customisations, let alone letting <a href="https://www.bleepingcomputer.com/news/security/razer-bug-lets-you-become-a-windows-10-admin-by-plugging-in-a-mouse/">using Razer's own software for anything</a>. Unfortunately for me, it came out of the box with a very bright RGB-illuminated logo on the top that is continuously cycling through colours. I was thinking about just putting a sticker over it when I noticed that there is a very shmick <a href="https://openrazer.github.io/">OpenRazer project</a> to facilitate controlling these Razer peripherals on Linux, so I thought I would give that a go. I would tolerate installing a bit of one-off software but I wanted to avoid adding custom apt repos or installing anything wildly unmaintained.
+</p>
+
+<p>
+Complete success: my LED is now off.
+</p>
+
+<p>
+First install the required Debian packages:
+</p>
+
+<pre>
+apt install openrazer-meta python3-pip
+</pre>
+
+<p>
+Then reboot the machine to let the driver take effect.
+</p>
+
+<p>
+Install <tt>razer-cli</tt>, a CLI configuration tool written in Python. It needs to use the system openrazer install so I passed <tt>--break-system-packages</tt>, but to contain any chaos to my own user I also passed <tt>--user</tt>. This has the ultimate result that the program works and is installed at <tt>~/.local/bin/razer-cli</tt>.
+</p>
+
+<pre>
+pip3 install razer-cli --user --break-system-packages
+</pre>
+
+<p>
+Hooray, it works:
+</p>
+
+<pre>
+$ <b>./.local/bin/razer-cli -l</b>
+Found 1 Razer device(s)
+Razer Cobra:
+   type: mouse
+   DPI: (1800, 1800)
+   max DPI: 8500
+   DPI stages: (3, [(400, 400), (800, 800), (1600, 1600), (3200, 3200), (6400, 6400)])
+   polling rate: 500
+   generic zone:
+   logo zone:
+      brightness: 75.0
+      colors: ['00FF00', '00FFFF', '0000FF']
+      effect: spectrum
+      speed: 1
+      wave_dir: 1
+      effects available: breath_dual, breath_random, breath_single, brightness, none, reactive, spectrum, static
+   serial: PM2443H27003395
+   firmware version: v1.0
+   driver version: 3.9.0
+   supported capabilities: name, type, firmware_version, serial, poll_rate, supported_poll_rates, dpi, dpi_stages, lighting, lighting_logo, lighting_logo_brightness, lighting_logo_spectrum, lighting_logo_static, lighting_logo_none, lighting_logo_reactive, lighting_logo_breath_single, lighting_logo_breath_dual, lighting_logo_breath_random
+</pre>
+
+<p>
+Now let's set that brightness down to zero.
+</p>
+
+<pre>
+$ <b>./.local/bin/razer-cli -b 0</b>
+creating path and file
+Adding new settings entry
+</pre>
+
+<p>
+All done. Nice.
+</p>
+
+]]></content:encoded>
+      <author>Thomas Karpiniec</author>
+      <guid>urn:uuid:f2cfdd5e-da1f-4bc1-bb3f-344ca26266b9</guid>
+      <pubDate>Tue, 14 Jan 2025 21:54:27 +1100</pubDate>
+    </item>
+    <item>
+      <title>No route to host - Debian testing firewall</title>
+      <link>https://octet-stream.net/b/tt/no-route-to-host-firewall.html</link>
+      <description></description>
+      <content:encoded><![CDATA[<p>
+My old laptop recently failed catastrophically due to a hardware or driver issue and the filesystem was corrupted so badly I had to reinstall the OS. I installed the latest Debian testing (trixie) release and all was well until I tried to set up Syncthing. The laptop was being discovered by others but it couldn't see anyone itself. Attempts to share folders were failing silently.
+</p>
+
+<p>
+Weirder yet, my desktop could ping the laptop but if I tried to connect to the Syncthing port with <tt>nc -v $ip 22000</tt> then it would report "no route to host". What? My routes are fine!
+</p>
+
+<p>
+As many sysadmins would know, and I had forgotten, you can get this strange-looking error when the connection is being denied by a firewall. This is all well and good, but since when does Debian have a firewall installed by default?
+</p>
+
+<p>
+<a href="https://forums.debian.net/viewtopic.php?t=161561">Apparently this is actually due to a "recommends" dependency on <tt>firewalld</tt></a> when you choose the "KDE" option in the installer. I don't know but I suspect this is a packaging bug more than an intentional decision. Anyways, uninstalling <tt>firewalld</tt> got me back in business.
+</p>
+
+]]></content:encoded>
+      <author>Thomas Karpiniec</author>
+      <guid>urn:uuid:9d19f00e-8b8c-45e5-9877-f00605ed03e4</guid>
+      <pubDate>Wed, 26 Feb 2025 20:45:09 +1100</pubDate>
+    </item>
+  </channel>
+</rss>

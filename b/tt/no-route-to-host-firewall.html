@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>No route to host - Debian testing firewall</title>
+<link rel="stylesheet" href="/assets/style.css">
+<link rel="alternate" type="application/rss+xml" title="RSS Feed" href="/b/tt/rss.xml">
+<link rel="alternate" type="application/atom+xml" title="Atom Feed" href="/b/tt/atom.xml">
+</head>
+<body>
+<div id="content">
+<nav>
+<a href="/"><div class="navitem">HOME</div></a>
+<a href="/p/"><div class="navitem">PROJECTS</div></a>
+<a href="/b/"><div class="navitem">BLOGS</div></a>
+<div class="clear"></div>
+</nav>
+<main>
+
+
+<h1>No route to host - Debian testing firewall</h1>
+
+<p><i>26 February 2025</i></p>
+
+<p>
+My old laptop recently failed catastrophically due to a hardware or driver issue and the filesystem was corrupted so badly I had to reinstall the OS. I installed the latest Debian testing (trixie) release and all was well until I tried to set up Syncthing. The laptop was being discovered by others but it couldn't see anyone itself. Attempts to share folders were failing silently.
+</p>
+
+<p>
+Weirder yet, my desktop could ping the laptop but if I tried to connect to the Syncthing port with <tt>nc -v $ip 22000</tt> then it would report "no route to host". What? My routes are fine!
+</p>
+
+<p>
+As many sysadmins would know, and I had forgotten, you can get this strange-looking error when the connection is being denied by a firewall. This is all well and good, but since when does Debian have a firewall installed by default?
+</p>
+
+<p>
+<a href="https://forums.debian.net/viewtopic.php?t=161561">Apparently this is actually due to a "recommends" dependency on <tt>firewalld</tt></a> when you choose the "KDE" option in the installer. I don't know but I suspect this is a packaging bug more than an intentional decision. Anyways, uninstalling <tt>firewalld</tt> got me back in business.
+</p>
+
+
+<hr>
+
+<p>
+<a href="/b/tt/">Tech Tidbits</a> Blog by Thomas Karpiniec<br>
+Posts <a href="/b/tt/rss.xml">RSS</a>, <a href="/b/tt/atom.xml">Atom</a>
+</p>
+
+</main>
+</div>
+</body>
+</html>
+

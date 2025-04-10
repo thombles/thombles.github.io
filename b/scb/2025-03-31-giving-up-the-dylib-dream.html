@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Giving up the dylib dream</title>
+<link rel="stylesheet" href="/assets/style.css">
+<link rel="alternate" type="application/rss+xml" title="RSS Feed" href="/b/scb/rss.xml">
+<link rel="alternate" type="application/atom+xml" title="Atom Feed" href="/b/scb/atom.xml">
+</head>
+<body>
+<div id="content">
+<nav>
+<a href="/"><div class="navitem">HOME</div></a>
+<a href="/p/"><div class="navitem">PROJECTS</div></a>
+<a href="/b/"><div class="navitem">BLOGS</div></a>
+<div class="clear"></div>
+</nav>
+<main>
+
+
+<h1>Giving up the dylib dream</h1>
+
+<p><i>31 March 2025</i></p>
+
+<p>
+There is a tension in software development practices that I've been stewing on for a long time. Many situations are now common that feel wrong to me for some reason, reasons that feel more like professional offence or inelegance than something I could necessarily justify as a problem to a business analyst.
+</p>
+
+<ul>
+<li>"This program has 300 distinct dependencies, carrying a total supply chain risk greater than any human could possibly manage."<br />
+<li>"Compiling software in this programming language requires downloading material from a single domain run by a single entity and you're on your own if it becomes unavailable."<br />
+<li>"These 100 binaries on your computer which depend on a library with a security flaw will all need to be recompiled and redeployed, so you'd better make sure you don't miss any."
+</ul>
+
+<p>
+What I'm getting at here is the combined result of various hotly-contested arguments: static vs dynamic linking, stable vs unstable ABIs, centralised vs decentralised dependency distribution, large libraries vs small libraries, frequent updates vs stable releases, distros vs runtimes, repo/appstore vs direct download, memory-safe languages vs the rest. Each of these has its own compelling arguments on both sides. I've spent more time than is healthy wondering how to optimise these constraints, given that I'm responsible for essentially none of it and my opinions scarcely matter. Overthinking things can be its own fun I guess.
+</p>
+
+<p>
+The thing is you can't decide each of these arguments individually on its merits. There is no version of Rust that has a stable ABI and an ecosystem that favours the use of large slow-moving dynamic libraries downloaded directly from library vendors. That does not exist, and there is no reasonable opportunity for it to ever exist because of prior practice and how generics work. If you want ABI-stable mature libraries and enough of them to drive your entire PC experience you're going to be using C.
+</p>
+
+<p>
+In practice it seems we have to choose between four broad ecosystems of software distribution:
+</p>
+
+<ol>
+<li>Distros heavily based on C/C++ dylibs where code reuse is common but you have to give up on rigorous memory safety and some amount of programmer convenience actually writing the software, e.g. BSDs or more traditional Linux distros.
+<li>Compiled programming languages which expect little from the OS and provide their own library distribution system, e.g. Rust or Go.
+<li>Interpreted or VM languages with their own library system(s), e.g. Python, Java or web.
+<li>Systems that try to give each program exactly what it needs regardless of where it's running or compiled vs interpreted, e.g. NixOS or Flatpak.
+</ol>
+
+<p>
+If one of these four is what you want then your path forward is simple. If you prefer some weird combination, you end up like me writing blog posts like <a href="https://thomask.sdf.org/blog/2023/11/14/rust-without-crates-io.html">"Rust without crates.io"</a> which upset a lot of people.
+</p>
+
+<p>
+Looking at the problems at the top of this post, I (among others) feel an urge to embrace tradition. These problems are new! Maybe we should just keep writing new C code using mature libraries? But C also kind of sucks. It doesn't have hashmaps and I'm probably going to write a use-after-free by accident, whether or not that happens to be exploitable with modern mitigations or CHERI or whatever else they come up with. 
+</p>
+
+<p>
+But it goes further than these technical issues. When you choose 1&ndash;4 and go into the surrounding communities you choose some basic principles about how computers should work for both developers and users. You may look differently at IRC vs XMPP vs Discord, GitHub vs tarballs vs Forĝejo, PRs vs <tt>git send-email</tt>, or even copyleft vs permissive. You're not just choosing a programming language. You're choosing a culture and an aesthetic, not necessarily for yourself personally, but at least the prevailing opinions of the people you're going to be spending the most time around.
+</p>
+
+<p>
+I'm a bit sad that there are relatively few practical "ruts" to fall into but I don't think any of them is necessarily wrong. We all just need to find the one that's best for us in the present moment.
+</p>
+
+<p>
+For me, after wavering for a while between 1 and 2, I've decided that I need to pick a lane. Option 2 is where I'm going to spend my time. I'm willing to give up shared libraries for modern syntax and tooling and memory safety. I will accept Rust's dependency sprawl while remaining optimistic that the ecosystem will stabilise over time to provide foundational libraries with similar prestige to Boost. Larger binaries and increased memory use can be tolerated. The role of distribution security teams changes from updating the broken library to replacing all the binaries it touched, which is perfectly feasible when all of the inputs to each binary are centrally managed.
+</p>
+
+<p>
+All the same… even within option 2, maybe there are ways to soften the weaknesses?
+</p>
+
+<ul>
+<li>How about a "stable" crates.io mirror that suppresses all new crate versions by 2 weeks (except for those named in RUSTSEC advisories) so that bleeding edge developers can find the (hypothetical) <tt>build.rs</tt> malware first?
+<li>Distributions can resolve the minimum set of semver-compatible language-specific dependencies across <em>all</em> their packages instead of each one individually, thereby amortising the impact on end users. (Debian for one seems to try to do this for Rust.)
+<li>Distributions can ensure they vendor libraries from language-specific systems to provide availability via their mirror networks.
+<li>What if more Rust and Go programs provided man pages and otherwise tried to be as pleasant as possible for inclusion in traditional distros? (Many do!)
+</ul>
+
+<p>
+I'm looking forward to spending less time thinking about this. And in giving myself permission to step away from the C-based perspective, I'm also looking forward to seeing where <a href="https://www.redox-os.org/">Redox</a> ends up.
+</p>
+
+
+<hr>
+
+<p>
+<a href="/b/scb/">Serious Computer Business</a> Blog by Thomas Karpiniec<br>
+Posts <a href="/b/scb/rss.xml">RSS</a>, <a href="/b/scb/atom.xml">Atom</a>
+</p>
+
+</main>
+</div>
+</body>
+</html>
+

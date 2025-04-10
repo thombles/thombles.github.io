@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bluesky, Fedi, and making centralisation modular</title>
+<link rel="stylesheet" href="/assets/style.css">
+<link rel="alternate" type="application/rss+xml" title="RSS Feed" href="/b/to/rss.xml">
+<link rel="alternate" type="application/atom+xml" title="Atom Feed" href="/b/to/atom.xml">
+</head>
+<body>
+<div id="content">
+<nav>
+<a href="/"><div class="navitem">HOME</div></a>
+<a href="/p/"><div class="navitem">PROJECTS</div></a>
+<a href="/b/"><div class="navitem">BLOGS</div></a>
+<div class="clear"></div>
+</nav>
+<main>
+
+
+<h1>Bluesky, Fedi, and making centralisation modular</h1>
+
+<p><i>26 November 2024</i></p>
+
+<p>
+In <i>the discourse</i> it's pretty well established by this point that <a href="https://en.wikipedia.org/wiki/Bluesky">Bluesky</a> is not meaningfully decentralised, with <a href="https://dustycloud.org/blog/how-decentralized-is-bluesky/">Christine Lemmer-Webber giving us the most comprehensive breakdown</a>. I've always been a little prickly about this. I like decentralisation; I don't like having a single company responsible for keeping the lights on in a given communication platform.
+</p>
+
+<p>
+However, over the course of thinking about it my stance has softened. In truth I haven't been fair to AT Protocol and the elephant in the room is <em>search engines</em>. For those of us in the decentralisation fan club, which includes the traditional approach of publishing on your own website, we're leaning massively on these enormous centralisation points all the the time to paper over the lack of discoverability<a id="footnote-1-ref" href="#footnote-1">[1]</a>. Is it reasonable to criticise AT for incorporating fit-for-purpose centralised aspects directly into their design? I think yes and no. It's not the worst thing but some parts could be better.
+</p>
+
+<p>
+Let's start with another system that's federated: email. If you start composing a message and type in somebody's name, autocomplete does not show you a list of every email address on the planet owned by someone with that name. There is an expectation that there's some out-of-band mechanism for finding somebody's email address. Maybe they put it on their website. Maybe you find that website using a search eng- oh, damnit. But anyway you don't have to use a search engine. They can scribble it on a piece of paper. You can send the email, and it doesn't have to pass through any servers funded by <a href="https://en.wikipedia.org/wiki/Bluesky#Public_launch">a company with "Blockchain" in the name</a>.
+</p>
+
+<p>
+On the other end of the spectrum, the Instagram website knows every Instagram user that exists so you can search for them even if you don't know their handle. It's simple and reliable but putting a lot of dependence on a single entity.
+</p>
+
+<p>
+What about the web? From a technological standpoint it's basically the same as email. If you plug in a computer and get access to the IPv4 and IPv6 address space you have no particular knowledge of what IPs are live, what domains exist on those IPs, or what content might be on the associated webpages. It's easy to forget how spartan it is because half of our industry exists to compensate for these shortfalls, providing us with a wide range of tools which are all forms of centralisation. We have search engines, we have link aggregators, and we have websites like Facebook and LinkedIn which simply try to put every person on the same domain so there's no ambiguity about where to find them.
+<p>
+
+<p>
+Maybe that last sentence feels a little uncomfortable&mdash;Bing and Hacker News are fine for what they do but does <em>Facebook</em> deserve to be in the same list? Probably not. In my mind there are two things which set search engines and aggregators apart from the big social media networks.
+</p>
+
+<p>
+First, they work with the idea that the web is modular. Anyone can make a search engine (just ask <a href="https://search.marginalia.nu/">Viktor</a>) and you can visit any search engine you like. If one doesn't do what you want then ignore it and choose another one.
+</p>
+
+<p>
+Second, your interactions with them are ephemeral and bounded. You lean on the expensive and complicated centralisation in the moment that you need it to accomplish a particular goal and then you stop communicating with them. When you search for a website you can put it in your bookmarks. When you find cool blogs on <a href="https://tildes.net">tildes.net</a> you can put them in your RSS reader. Facebook and LinkedIn don't stop there. They insist that you continue to perform all interactions through their proprietary space, even if you have switched to something that <em>could be</em> point-to-point like having a chat.
+</p>
+
+<p>
+Let's bring this back to Fediverse vs Bluesky. There are various centralised features you might want.
+</p>
+
+<table border="1">
+<tr><th>Feature</th><th>Central?</th><th>Does Tom care?</th></tr>
+<tr><td>Follow specific people, post to followers</td><td>No</td><td>Yes, this is basically want I want to do.</td></tr>
+<tr><td>Realtime notifications for replies</td><td>No</td><td>Yes, this is important for conversation.</td></tr>
+<tr><td>Search for users</td><td>Yes</td><td>No, I'm happy to learn about new people through boosts or their websites.</td></tr>
+<tr><td>Search for content</td><td>Yes</td><td>Yes, I would love a global search engine for the fediverse.</td></tr>
+<tr><td>Global hashtags</td><td>Yes</td><td>Kind of, it can be fun or useful for events but the SNR is generally poor. I mostly use tags for blocking (both others' posts, and a courtesy so others can block mine).</td></tr>
+<tr><td>See all replies on own and viewed posts</td><td>No</td><td>Yes, it's annoying when you're missing things. The fact that this doesn't work on the fediverse is an implementation detail/choice that could be changed.</td></tr>
+<tr><td>Accurate like/boost counts</td><td>Yes</td><td>It would be nice if they were updated occasionally rather than not at all but this is generally an unhealthy part of social media to focus on.</td></tr>
+<tr><td>Trending users or content</td><td>Yes</td><td>No.</td></tr>
+</table>
+
+
+<p>
+I can draw a few conclusions:
+</p>
+
+<ol>
+<li>What degree of centralisation you want or don't want probably depends heavily on personal preferences about how you use social media (or views about how social media <em>should</em> be if you're that sort of personality).
+<li>You can have something that's technically a social network without any centralised aspects whatsoever but it's going to be a bit dreary.
+<li>Some of these centralised capabilities require integration into the social network protocol, such as tracking dopamine accurately. Many others could be implemented by having external modular services (websites) that consume a firehose to provide search or dashboards of trending content or so on. Opinions will vary whether it's a better to have one choice in-app, or multiple modular choices out-of-app.
+<li>Once you start tracking all the content centrally for one feature you kind of may as well do it all?
+</ol>
+
+<p>
+So if I'm willing to take a step back and consider that maybe some of my opinions are a little fringe, then atproto's architectural decisions seem pretty reasonable. The fact that anybody can run a relay means there's a possibility of an ecosystem of modular services building on the data. However a desire to bring all the global/realtime features that users want into the Bluesky app itself means that it has recentralised into a particular AppView and now you're dependent on that enormous component for even the basic things like knowing what your followers posted recently. There will be less incentive for people to build or use third party services when they've been pre-sherlocked by Bluesky itself.
+</p>
+
+<p>
+At the same time there are real weaknesses in the fediverse solution. It could borrow some concepts from atproto but do it the modular webby way. I would love it there was a fediverse firehose&mdash;many of them, where people who want to run search engines can subscribe to the public feeds of all the instances they're aware of and get the latest updates for indexing and analysis. We could have a vibrant ecosystem of search, global hashtags and entertaining trends all provided by third parties, where we get the benefits but our interactions with and dependence on those systems are bounded to those particular tasks. Meanwhile core messaging functions remain instance-local and users are free not to opt-in to sending data to the firehose.
+</p>
+
+<p>
+If it were possible to bring about this modular approach to centralisation, I'd have confidence in the fediverse being the platform that can achieve a happy balance in the long term. Individual aggregators can come and go while the core business of the network is resilient and private. If something goes wrong with Bluesky, well, you kind of have to throw away the whole thing and start again. I know some people are happy to treat their social media platforms as discardable things where you can follow the crowd from year to year. That's valid but unsatisfying and I'd love to find a combination of technology that's more enduring.
+</p>
+
+<hr>
+
+<ol>
+<li id="footnote-1">For the purposes of this essay I will ignore the fact that our glorious decentralised web is also utterly dependent on DNS and CA PKI. If you enjoy being gloomy about this sort of thing, I recommend <a href="https://computer.rip/2022-01-16-peer-to-peer-but-mostly-the-main-peer.html">this Computers Are Bad post</a>. <a href="#footnote-1-ref">↩︎</a>
+</ol>
+
+
+<hr>
+
+<p>
+<a href="/b/to/">Tom&#39;s Opinions</a> Blog by Thomas Karpiniec<br>
+Posts <a href="/b/to/rss.xml">RSS</a>, <a href="/b/to/atom.xml">Atom</a>
+</p>
+
+</main>
+</div>
+</body>
+</html>
+

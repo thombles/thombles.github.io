@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Disabling the LED on a new Razer Cobra</title>
+<link rel="stylesheet" href="/assets/style.css">
+<link rel="alternate" type="application/rss+xml" title="RSS Feed" href="/b/tt/rss.xml">
+<link rel="alternate" type="application/atom+xml" title="Atom Feed" href="/b/tt/atom.xml">
+</head>
+<body>
+<div id="content">
+<nav>
+<a href="/"><div class="navitem">HOME</div></a>
+<a href="/p/"><div class="navitem">PROJECTS</div></a>
+<a href="/b/"><div class="navitem">BLOGS</div></a>
+<div class="clear"></div>
+</nav>
+<main>
+
+
+<h1>Disabling the LED on a new Razer Cobra</h1>
+
+<p><i>14 January 2025</i></p>
+
+<p>
+Recently my mouse began to die and I went searching for a replacement. I wanted something not too cheap but also not too expensive and gamery and eventually picked up a <a href="https://www.razer.com/gaming-mice/razer-cobra">Razer Cobra</a>. It's wired, nice and light, doesn't have an excess of buttons, and it's supposedly suitable for my style of mouse grip ("fingertip", according to companies who make mice). It's only been a few days but so far I'm quite happy with it. It's responsive and feels nice to use, though the button clicks are pretty loud.
+</p>
+
+<p>
+I plugged this into a system running Debian testing (trixie) and had no intention of doing any sort of fancy mouse customisations, let alone letting <a href="https://www.bleepingcomputer.com/news/security/razer-bug-lets-you-become-a-windows-10-admin-by-plugging-in-a-mouse/">using Razer's own software for anything</a>. Unfortunately for me, it came out of the box with a very bright RGB-illuminated logo on the top that is continuously cycling through colours. I was thinking about just putting a sticker over it when I noticed that there is a very shmick <a href="https://openrazer.github.io/">OpenRazer project</a> to facilitate controlling these Razer peripherals on Linux, so I thought I would give that a go. I would tolerate installing a bit of one-off software but I wanted to avoid adding custom apt repos or installing anything wildly unmaintained.
+</p>
+
+<p>
+Complete success: my LED is now off.
+</p>
+
+<p>
+First install the required Debian packages:
+</p>
+
+<pre>
+apt install openrazer-meta python3-pip
+</pre>
+
+<p>
+Then reboot the machine to let the driver take effect.
+</p>
+
+<p>
+Install <tt>razer-cli</tt>, a CLI configuration tool written in Python. It needs to use the system openrazer install so I passed <tt>--break-system-packages</tt>, but to contain any chaos to my own user I also passed <tt>--user</tt>. This has the ultimate result that the program works and is installed at <tt>~/.local/bin/razer-cli</tt>.
+</p>
+
+<pre>
+pip3 install razer-cli --user --break-system-packages
+</pre>
+
+<p>
+Hooray, it works:
+</p>
+
+<pre>
+$ <b>./.local/bin/razer-cli -l</b>
+Found 1 Razer device(s)
+Razer Cobra:
+   type: mouse
+   DPI: (1800, 1800)
+   max DPI: 8500
+   DPI stages: (3, [(400, 400), (800, 800), (1600, 1600), (3200, 3200), (6400, 6400)])
+   polling rate: 500
+   generic zone:
+   logo zone:
+      brightness: 75.0
+      colors: ['00FF00', '00FFFF', '0000FF']
+      effect: spectrum
+      speed: 1
+      wave_dir: 1
+      effects available: breath_dual, breath_random, breath_single, brightness, none, reactive, spectrum, static
+   serial: PM2443H27003395
+   firmware version: v1.0
+   driver version: 3.9.0
+   supported capabilities: name, type, firmware_version, serial, poll_rate, supported_poll_rates, dpi, dpi_stages, lighting, lighting_logo, lighting_logo_brightness, lighting_logo_spectrum, lighting_logo_static, lighting_logo_none, lighting_logo_reactive, lighting_logo_breath_single, lighting_logo_breath_dual, lighting_logo_breath_random
+</pre>
+
+<p>
+Now let's set that brightness down to zero.
+</p>
+
+<pre>
+$ <b>./.local/bin/razer-cli -b 0</b>
+creating path and file
+Adding new settings entry
+</pre>
+
+<p>
+All done. Nice.
+</p>
+
+
+<hr>
+
+<p>
+<a href="/b/tt/">Tech Tidbits</a> Blog by Thomas Karpiniec<br>
+Posts <a href="/b/tt/rss.xml">RSS</a>, <a href="/b/tt/atom.xml">Atom</a>
+</p>
+
+</main>
+</div>
+</body>
+</html>
+

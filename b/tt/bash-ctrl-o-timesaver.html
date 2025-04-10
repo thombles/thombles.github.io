@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bash&#39;s ctrl-o timesaver</title>
+<link rel="stylesheet" href="/assets/style.css">
+<link rel="alternate" type="application/rss+xml" title="RSS Feed" href="/b/tt/rss.xml">
+<link rel="alternate" type="application/atom+xml" title="Atom Feed" href="/b/tt/atom.xml">
+</head>
+<body>
+<div id="content">
+<nav>
+<a href="/"><div class="navitem">HOME</div></a>
+<a href="/p/"><div class="navitem">PROJECTS</div></a>
+<a href="/b/"><div class="navitem">BLOGS</div></a>
+<div class="clear"></div>
+</nav>
+<main>
+
+
+<h1>Bash&#39;s ctrl-o timesaver</h1>
+
+<p><i>23 December 2024</i></p>
+
+<p>
+I have long been an enthusiastic user of the reverse search (ctrl-r) feature in the bash shell. To recap, if you have a history of typed commands that looks like this:
+</p>
+
+<pre>
+...
+make build
+make test
+make deploy
+...
+</pre>
+
+<p>
+...then instead of typing out <tt>make build</tt> in full the next time you can type <tt><b>ctrl-r b u i</b></tt> which shows a preview like so:
+</p>
+
+<pre>
+(reverse-i-search)`bui': make build
+</pre>
+
+<p>
+Now you can press <tt><b>enter</b></tt> and the command runs.
+</p>
+
+<p>
+Now suppose you want to run the those three historical <tt>make</tt> commands, one at a time, in sequence? Past foolish me would have done something like <tt><b>ctrl-r b u i enter ctrl-r t e s enter ctrl-r d e p enter</b></tt>.
+</p>
+
+<p>
+The other day I learnt that you can do: <tt><b>ctrl-r b u i ctrl-o ctrl-o enter</b></tt>. Each time you press <tt><b>ctrl-o</b></tt> it runs the command and then replaces the search prompt with the command that followed it.
+</p>
+
+<p>
+So this is a very fast way to go back and re-run a sequence of commands. Now I just need to make my muscle memory use it...
+</p>
+
+
+<hr>
+
+<p>
+<a href="/b/tt/">Tech Tidbits</a> Blog by Thomas Karpiniec<br>
+Posts <a href="/b/tt/rss.xml">RSS</a>, <a href="/b/tt/atom.xml">Atom</a>
+</p>
+
+</main>
+</div>
+</body>
+</html>
+

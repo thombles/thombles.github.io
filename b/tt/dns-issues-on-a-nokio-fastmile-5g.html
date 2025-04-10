@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DNS Issues on a Nokia FastMile 5G</title>
+<link rel="stylesheet" href="/assets/style.css">
+<link rel="alternate" type="application/rss+xml" title="RSS Feed" href="/b/tt/rss.xml">
+<link rel="alternate" type="application/atom+xml" title="Atom Feed" href="/b/tt/atom.xml">
+</head>
+<body>
+<div id="content">
+<nav>
+<a href="/"><div class="navitem">HOME</div></a>
+<a href="/p/"><div class="navitem">PROJECTS</div></a>
+<a href="/b/"><div class="navitem">BLOGS</div></a>
+<div class="clear"></div>
+</nav>
+<main>
+
+
+<h1>DNS Issues on a Nokia FastMile 5G</h1>
+
+<p><i>21 December 2024</i></p>
+
+<p>
+<a href="https://www.nokia.com/networks/fixed-networks/fastmile/5g-gateway-32-2/">Nokia FastMile 5G Gateway</a>
+</p>
+
+<pre>
+ProductClass:3TG01797
+HWVer:3TG01797AMFA
+SWVer:1.2304.00.0445
+</pre>
+
+<p>
+For around six months my home internet has been provided by a Nokia modem, a unit my ISP supplied and I am obliged to use. I have various devices connected both via the LAN port and WiFi.
+</p>
+
+<p>
+Over time I have observed a problem: the modem's DNS server stops responding for periods of time ranging from minutes to hours. While it is in this state IP traffic is flowing normally and existing TCP connections continue to work. Power cycling the modem always fixes it. I haven't been able to spot anything suspicious in the modem's own system logs that would correlate with the failures.
+</p>
+
+<p>
+While it is possible that my unit is faulty, to me the nature of the fault feels more like a software bug. The admin interface has a firmware upgrade feature but the files are not publicly available on Nokia's website. I'm not even sure if a newer version exists than what I have.
+</p>
+
+<p>
+At this point I'm hesitant to undertake the hassle of seeking a replacement modem since it may be difficult to convince them that a problem exists, and there's a reasonable chance the new unit will have the same flaw anyway. If it's practical to do so I'd rather work around the problem myself.
+</p>
+
+<p>
+I believe I have accomplished a workaround but this has been more tedious than I hoped.
+</p>
+
+<h2>Plan A: Set a different DNS server via DHCP</h2>
+
+<p>
+The easiest fix would be to set a different DNS server like 1.1.1.1 or 8.8.8.8 which will continue to be accessible even when the modem goes into its buggy state. The modem lets you configure many aspects of the DHCP server, however sadly there is no option to customise the DNS server IP. It always directs clients to use the modem itself. No good.
+</p>
+
+<h2>Plan B: Substitute DHCP server</h2>
+
+<p>
+I already have a couple of Raspberry Pis that are always powered on and connected to the modem via Ethernet. Why not press one of those into service as a DHCP server and disable the one on the modem?
+</p>
+
+<p>
+When I tried this I found that the modem does not bridge DHCP traffic between its wired and wireless interfaces. That is, the Pi could issue IPs to other devices on the same switch but WiFi clients would never get an IPv4 address. I didn't test if a DHCP server on the WiFi side works since I didn't want to run it that way anyway.
+</p>
+
+<p>
+Of course, IPv6 was still working correctly on WiFi but figuring out how to usefully run an IPv6-only LAN was out of scope for this fix.
+</p>
+
+<h2>Plan C: Double router</h2>
+
+<p>
+With a little bit of sadness, I switched off the WiFi on the Nokia and plugged in a spare TP-Link WAP. This provides another layer of NAT, which is unnecessary, but happens to provide more control over the DHCP so that I could give all clients a different DNS server that's located out on the internet.
+</p>
+
+<p>
+This is inelegant, no doubt. Together with the CGNAT there are now three layers of translation between my WiFi and the internet. It works well enough, though.
+</p>
+
+<p>
+The main difficulty I had was that the Nokia supports more advanced WiFi security&mdash;WPA3 I believe&mdash;and when I put in the older TP-Link with the same SSID, many devices refused to accept the security downgrade until I explicitly forgot and re-joined the WiFi network.
+</p>
+
+<p>
+So it's all been a bit of a pain. Fingers crossed it will remain stable from here on.
+</p>
+
+
+<hr>
+
+<p>
+<a href="/b/tt/">Tech Tidbits</a> Blog by Thomas Karpiniec<br>
+Posts <a href="/b/tt/rss.xml">RSS</a>, <a href="/b/tt/atom.xml">Atom</a>
+</p>
+
+</main>
+</div>
+</body>
+</html>
+
